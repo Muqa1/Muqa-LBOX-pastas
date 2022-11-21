@@ -27,8 +27,7 @@ local function Binds()
     draw.Text( 9, 540, "Fake Lag" )
     if gui.GetValue( "Fake Lag" ) == 1 then
         draw.Color( 0, 200, 0, 255)
-        draw.Text( 79, 540, "ON" )
-        draw.Text( 99, 540, FLvalue )
+        draw.Text( 79, 540, FLvalue )
     else
         draw.Color( 200, 0, 0, 255)
         draw.Text( 79, 540, "OFF" )
