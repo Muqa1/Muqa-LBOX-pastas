@@ -55,4 +55,4 @@ local function Binds()
 
 end
 
-callbacks.Register( "Draw", Binds )
+callbacks.Register( "Draw", "Binds", Binds )
