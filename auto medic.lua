@@ -3,7 +3,7 @@ procent = 0.6 -- edit this value from 0.1 to 1 to change how low you must be to 
 -------------------------
 local LastExtenFreeze = 0 
 local function MedicCall()
-    if client.IsFreeTrialAccount() == false then
+    if client.IsFreeTrialAccount() == true then
         print("Cant run ".. GetScriptName().. " because you have a free to play account.")
         callbacks.Unregister( "Draw", "MedicCall", MedicCall )
     end
