@@ -3,6 +3,11 @@ procent = 0.6 -- edit this value from 0.1 to 1 to change how low you must be to 
 -------------------------
 local LastExtenFreeze = 0 
 local function MedicCall()
+    if client.IsFreeTrialAccount() == false then
+        print("Cant run ".. GetScriptName().. " because you have a free to play account.")
+        callbacks.Unregister( "Draw", "MedicCall", MedicCall )
+    end
+
     if gamecoordinator.IsConnectedToMatchServer() then 
 
     local LPlayer = entities.GetLocalPlayer()
