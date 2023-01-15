@@ -1,0 +1,15 @@
+
+local function Gunspy()
+if gamecoordinator.IsConnectedToMatchServer then
+
+    local health = entities.GetLocalPlayer():GetHealth() / entities.GetLocalPlayer():GetMaxHealth()
+    if health <= 0.25 then
+        client.Command( "+attack2", true )
+    elseif health >= 0.25 then
+        client.Command( "-attack2", true )
+    end
+    
+end
+end
+end
+callbacks.Register( "Draw", "Gunspy", Gunspy)
