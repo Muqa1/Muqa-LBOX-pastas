@@ -36,7 +36,7 @@ local function wmark()
         ping = "-"
     end
     draw.Color(table.unpack(Colors.main_Color))
-    draw.Text( 1725, 27, "| ".. (ping * 2).. " ms" )
+    draw.Text( 1725, 27, "| ".. ping.. " ms" )
 --  
     draw.Color(table.unpack(Colors.main_Color)) --clock pasted from XJN2 https://lmaobox.net/forum/v/discussion/22007/skeet-gamesense-styled-watermark/p1
     draw.Text( 1790, 27, "| ".. os.date("%I:%M %p") ) 
