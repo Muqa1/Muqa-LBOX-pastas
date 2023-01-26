@@ -9,6 +9,7 @@ font = draw.CreateFont( "Museo Sans Cryl 900", 24, 800 )
 font1 = draw.CreateFont( "Museo Sans Cryl 900", 19,500 )
 
 local function wmark()
+    if engine.IsGameUIVisible() == false then
 --
     draw.Color(table.unpack(Colors.background_Color)) -- main box
     draw.FilledRect( 1500, 25, 1875, 50 )  
@@ -35,11 +36,12 @@ local function wmark()
         ping = "-"
     end
     draw.Color(table.unpack(Colors.main_Color))
-    draw.Text( 1725, 27, "| ".. ping.. " ms" )
+    draw.Text( 1725, 27, "| ".. (ping * 2).. " ms" )
 --  
     draw.Color(table.unpack(Colors.main_Color)) --clock pasted from XJN2 https://lmaobox.net/forum/v/discussion/22007/skeet-gamesense-styled-watermark/p1
     draw.Text( 1790, 27, "| ".. os.date("%I:%M %p") ) 
 --
+end
 end
 
 callbacks.Register( "Draw", "wmark", wmark)
