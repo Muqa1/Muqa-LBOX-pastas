@@ -43,7 +43,7 @@ local function colors()
         gui.SetValue( "red team color", enemy) -- enemy
     end
     
-    gui.SetValue( "gui color", friendly) 
+    gui.SetValue( "gui color", menu) 
 
     gui.SetValue( "aimbot target color", AimbotTarget )
     
