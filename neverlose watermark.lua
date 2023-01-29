@@ -3,7 +3,6 @@
 local options = {
     X = 0.88,
     Y = 0.03,
-    Size = 10,
     Colors = {
     main_Color = {255, 255, 255, 255},
     big_text_fade1_color = {9, 93, 137, 255},
@@ -18,8 +17,8 @@ font1 = draw.CreateFont( "Museo Sans Cryl 900", 19,500 )
 local function wmark()
     if engine.IsGameUIVisible() == false then
 
-    local boxWidth = 37.5 * options.Size
-    local boxHeight = math.floor(2.5 * options.Size)
+    local boxWidth = 37.5 * 10
+    local boxHeight = math.floor(2.5 * 10)
 
     local sWidth, sHeight = draw.GetScreenSize()
 
