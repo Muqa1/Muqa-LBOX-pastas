@@ -35,7 +35,7 @@ end
 -- example of drawing the gradient
 local function drawing()
 
-    DrawGradient(0, 0, 1920, 1080, 255, 255, 255, 255, 0, 0, 0, 0, 1000)
+    DrawGradient(0, 0, 1920, 1080, 255, 255, 255, 255, 0, 0, 0, 0, 1000) -- draws a white gradient across the entire screen if you're using a 1920 x 1080 monitor
 
 end
 callbacks.Register( "Draw", "drawing", drawing )
