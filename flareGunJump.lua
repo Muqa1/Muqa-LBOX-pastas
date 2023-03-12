@@ -8,7 +8,7 @@ local function flareJump( cmd )
 
         local flags = player:GetPropInt( "m_fFlags" );
 
-        if (flags & FL_ONGROUND) and (flags & LOADOUT_POSITION_SECONDARY) then
+        if flags & FL_ONGROUND then
             cmd:SetButtons(cmd.buttons | IN_JUMP)
             cmd:SetButtons(cmd.buttons | IN_DUCK)
             cmd:SetButtons(cmd.buttons | IN_ATTACK)
