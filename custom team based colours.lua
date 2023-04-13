@@ -25,7 +25,7 @@ backtrack = rgbaToHex(82, 163, 255, 255)
 --------
 
 local function colors()
-if gamecoordinator.IsConnectedToMatchServer() then
+if engine.IsGameUIVisible() == false then
     local player = entities.GetLocalPlayer()
     
     local myteam = player:GetTeamNumber()
