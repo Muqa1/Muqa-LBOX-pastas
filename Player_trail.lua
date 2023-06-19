@@ -1,6 +1,6 @@
 -- these are the settings that you can edit
 
-local trail_lenght = 100 -- this is in ticks
+local trail_lenght = 100 -- this is in ticks, also if u use high values like 1000 then it can decrease ur fps
 
 local rainbow_speed = 2 -- the rgb rainbow effect speed
 
