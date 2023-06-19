@@ -1,6 +1,6 @@
 -- these are the settings that you can edit
 
-local trail_lenght = 100 -- this is in ticks, also if u use high values like 1000 then it can decrease ur fps
+local trail_length = 100 -- this is in ticks, also if u use high values like 1000 then it can decrease ur fps
 
 local rainbow_speed = 2 -- the rgb rainbow effect speed
 
@@ -10,7 +10,7 @@ local playerPositions = {}
 local function aUpdate()
     if engine.IsGameUIVisible() == true then playerPositions = {} return end
     table.insert(playerPositions, 1, entities.GetLocalPlayer():GetAbsOrigin()) 
-    if #playerPositions > trail_lenght then
+    if #playerPositions > trail_length then
         table.remove(playerPositions) 
     end
 end
