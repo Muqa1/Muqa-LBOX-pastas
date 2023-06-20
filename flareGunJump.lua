@@ -12,11 +12,7 @@ local function flareJump( cmd )
             cmd:SetButtons(cmd.buttons | IN_JUMP)
             cmd:SetButtons(cmd.buttons | IN_DUCK)
             cmd:SetButtons(cmd.buttons | IN_ATTACK)
-            cmd:SetViewAngles( 89, 0, 0 )
-        else 
-            cmd:SetButtons(cmd.buttons & ~IN_JUMP)
-            cmd:SetButtons(cmd.buttons & ~IN_DUCK)
-            cmd:SetButtons(cmd.buttons & ~IN_ATTACK)
+            cmd:SetViewAngles( 89, nil, nil )
         end
     end
 end
