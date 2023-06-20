@@ -8,11 +8,13 @@ local function flareJump( cmd )
 
         local flags = player:GetPropInt( "m_fFlags" );
 
+        local pitch, yaw, roll = cmd:GetViewAngles()
+
         if flags & FL_ONGROUND then
             cmd:SetButtons(cmd.buttons | IN_JUMP)
             cmd:SetButtons(cmd.buttons | IN_DUCK)
             cmd:SetButtons(cmd.buttons | IN_ATTACK)
-            cmd:SetViewAngles( 89, nil, nil )
+            cmd:SetViewAngles( 89, yaw, roll )
         end
     end
 end
