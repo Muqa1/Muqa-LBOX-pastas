@@ -8,7 +8,7 @@ local endColorR, endColorG, endColorB = 0, 255, 247 -- The color towards the end
 local playerPositions = {}
 
 local function aUpdate()
-    if engine.IsGameUIVisible() == true then
+    if engine.IsGameUIVisible() == true and not entities.GetLocalPlayer():IsAlive() then
         playerPositions = {}
         return
     end
@@ -20,7 +20,7 @@ end
 callbacks.Register("CreateMove", "aUpdate", aUpdate)
 
 local function aDraw()
-    if engine.IsGameUIVisible() == true then
+    if engine.IsGameUIVisible() == true and not entities.GetLocalPlayer():IsAlive() then
         playerPositions = {}
         return
     end

@@ -8,7 +8,7 @@ local rainbow_speed = 2 -- the rgb rainbow effect speed
 --==========================================================================--
 local playerPositions = {}
 local function aUpdate()
-    if engine.IsGameUIVisible() == true then playerPositions = {} return end
+    if engine.IsGameUIVisible() == true  and not entities.GetLocalPlayer():IsAlive() then playerPositions = {} return end
     table.insert(playerPositions, 1, entities.GetLocalPlayer():GetAbsOrigin()) 
     if #playerPositions > trail_length then
         table.remove(playerPositions) 
@@ -16,7 +16,7 @@ local function aUpdate()
 end
 callbacks.Register("CreateMove", "aUpdate", aUpdate)
 local function aDraw()
-    if engine.IsGameUIVisible() == true then playerPositions = {} return end
+    if engine.IsGameUIVisible() == true and not entities.GetLocalPlayer():IsAlive() then playerPositions = {} return end
     function RGBRainbow(frequency)
         local curtime = globals.CurTime() 
         local r, g, b
