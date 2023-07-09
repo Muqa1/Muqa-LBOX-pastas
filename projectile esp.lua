@@ -87,7 +87,7 @@ local function proj_esp()
         draw_esp("CTFProjectile_Rocket") -- rocket
         draw_esp("CTFProjectile_EnergyBall") -- cow mangler
         draw_esp("CTFProjectile_EnergyRing") -- bison, pomson
-        draw_esp("CTFFlameManager") -- flamethrower
+        -- draw_esp("CTFFlameManager") -- flamethrower
         draw_esp("CTFProjectile_BallOfFire") -- dragons fury
         draw_esp("CTFProjectile_Flare") -- all flareguns
         draw_esp("CTFGrenadePipebombProjectile") -- stickyies and pipes
