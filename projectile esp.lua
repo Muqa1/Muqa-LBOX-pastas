@@ -50,7 +50,7 @@ local function proj_esp()
             local entity = entities.FindByClass( entity_name )
             for i, projectile in pairs(entity) do 
                 local projectile_screen = client.WorldToScreen( projectile:GetAbsOrigin() )
-                if projectile_screen ~= nil and projectile:IsDormant() == false then -- and projectile:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber() 
+                if projectile_screen ~= nil and projectile:IsDormant() == false and projectile:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber() then 
                     draw.Color(table.unpack(Proj_color))
                     if Proj_box == true then
                         draw.OutlinedRect( projectile_screen[1] - 5, projectile_screen[2] - 5, projectile_screen[1] + 5, projectile_screen[2] + 5 )
