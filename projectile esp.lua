@@ -23,6 +23,8 @@ local function proj_esp()
                 esp_name = "Milk"
             elseif entity_name == "CTFProjectile_Rocket" then
                 esp_name = "Rocket"
+            elseif entity_name == "CTFProjectile_SentryRocket" then 
+                esp_name = "Rocket"
             elseif entity_name == "CTFProjectile_EnergyBall" then
                 esp_name = "Energy Ball"
             elseif entity_name == "CTFProjectile_EnergyRing" then
@@ -50,10 +52,50 @@ local function proj_esp()
             local entity = entities.FindByClass( entity_name )
             for i, projectile in pairs(entity) do 
                 local projectile_screen = client.WorldToScreen( projectile:GetAbsOrigin() )
-                if projectile_screen ~= nil and projectile:IsDormant() == false and projectile:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber() then 
+                if projectile_screen ~= nil and projectile:IsDormant() == false and projectile:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber() then  -- and projectile:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber()
                     draw.Color(table.unpack(Proj_color))
-                    if Proj_box == true then
-                        draw.OutlinedRect( projectile_screen[1] - 5, projectile_screen[2] - 5, projectile_screen[1] + 5, projectile_screen[2] + 5 )
+                    if Proj_box == true then -- pasted 3d box B)
+                        local hitboxes = projectile:HitboxSurroundingBox()
+                        local min = hitboxes[1]
+                        local max = hitboxes[2]
+                        -- Define the eight vertices of the box
+                        local vertices = {
+                            Vector3(min.x, min.y, min.z),
+                            Vector3(min.x, max.y, min.z),
+                            Vector3(max.x, max.y, min.z),
+                            Vector3(max.x, min.y, min.z),
+                            Vector3(min.x, min.y, max.z),
+                            Vector3(min.x, max.y, max.z),
+                            Vector3(max.x, max.y, max.z),
+                            Vector3(max.x, min.y, max.z)
+                        }
+                        -- Convert vertices to screen space
+                        local screenVertices = {}
+                        for j, vertex in ipairs(vertices) do
+                            local screenPos = client.WorldToScreen(vertex)
+                            if screenPos ~= nil then
+                                screenVertices[j] = {x = screenPos[1], y = screenPos[2]}
+                            end
+                        end
+                        -- Draw the 3D box
+                        draw.Color(table.unpack(Proj_color))
+                        for j = 1, 4 do
+                            local vertex1 = screenVertices[j]
+                            local vertex2 = screenVertices[j % 4 + 1]
+                            local vertex3 = screenVertices[j + 4]
+                            local vertex4 = screenVertices[(j + 4) % 4 + 5]
+                            if vertex1 ~= nil and vertex2 ~= nil and vertex3 ~= nil and vertex4 ~= nil then
+                                draw.Line(vertex1.x, vertex1.y, vertex2.x, vertex2.y)
+                                draw.Line(vertex3.x, vertex3.y, vertex4.x, vertex4.y)
+                            end
+                        end
+                        for j = 1, 4 do
+                            local vertex1 = screenVertices[j]
+                            local vertex2 = screenVertices[j + 4]
+                            if vertex1 ~= nil and vertex2 ~= nil then
+                                draw.Line(vertex1.x, vertex1.y, vertex2.x, vertex2.y)
+                            end
+                        end                 
                     end
                     if Proj_name == true then
                         local projectile_length, projectile_height = draw.GetTextSize(esp_name)
@@ -96,6 +138,7 @@ local function proj_esp()
         draw_esp("CTFProjectile_HealingBolt") -- crusaders crossbow
         draw_esp("CTFProjectile_Jar") -- jarate
         draw_esp("CTFProjectile_JarGas") -- gas passer
+        draw_esp("CTFProjectile_SentryRocket") -- sentry rocket
      
     end
 end
