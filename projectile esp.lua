@@ -63,7 +63,7 @@ local function proj_esp()
                         local projectile_dist = vector.Distance( entities.GetLocalPlayer():GetAbsOrigin(), projectile:GetAbsOrigin() )
                         projectile_dist = math.floor(projectile_dist)
                         local projectile_dist_length, projectile_dist_height = draw.GetTextSize("[".. projectile_dist.. "Hu]")
-                        draw.Text( projectile_screen[1] - math.floor(projectile_dist_length / 2), projectile_screen[2] + 10, "[".. projectile_dist.. "Hu]" )
+                        draw.Text( projectile_screen[1] - math.floor(projectile_dist_length / 2), projectile_screen[2] + 7, "[".. projectile_dist.. "Hu]" )
                     end
                 end
             end
