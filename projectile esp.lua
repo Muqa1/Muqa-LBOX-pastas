@@ -1,16 +1,19 @@
 local Proj_name = true
 local Proj_dist = true
 local Proj_box = true
+local sticky_color = { 3, 177, 252, 255 }
+local rocket_color = { 215, 3, 252, 255 }
+
 --======================================================================================================================--
 local font = draw.CreateFont( "Tahoma", 12, 800, FONTFLAG_OUTLINE  )
 local function proj_esp()
     if entities.GetLocalPlayer() ~= nil then
         draw.SetFont( font )
-        draw.Color( 255, 255, 255, 255 )
-        local stickyies = entities.FindByClass("CTFGrenadePipebombProjectile")
+        local stickyies = entities.FindByClass("CTFGrenadePipebombProjectile") -- CTFGrenadePipebombProjectile
         for i, sticky in pairs(stickyies) do 
             local sticky_screen = client.WorldToScreen( sticky:GetAbsOrigin() )
             if sticky_screen ~= nil and sticky:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber() then 
+                draw.Color(table.unpack(sticky_color))
                 if Proj_box == true then
                 draw.OutlinedRect( sticky_screen[1] - 5, sticky_screen[2] - 5, sticky_screen[1] + 5, sticky_screen[2] + 5 )
                 end
@@ -26,10 +29,11 @@ local function proj_esp()
                 end
             end
         end
-        local rockets = entities.FindByClass("CTFProjectile_Rocket")
+        local rockets = entities.FindByClass("CTFProjectile_Rocket") -- CTFGrenadePipebombProjectile
         for i, rocket in pairs(rockets) do 
             local rocket_screen = client.WorldToScreen( rocket:GetAbsOrigin() )
-            if rocket_screen ~= nil and rocket:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber() then 
+            if rocket_screen ~= nil and rocket:GetTeamNumber() ~= entities.GetLocalPlayer():GetTeamNumber() then
+                draw.Color(table.unpack(rocket_color))
                 if Proj_box == true then
                 draw.OutlinedRect( rocket_screen[1] - 5, rocket_screen[2] - 5, rocket_screen[1] + 5, rocket_screen[2] + 5 )
                 end
