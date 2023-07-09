@@ -1,7 +1,7 @@
 local Proj_name = true
 local Proj_dist = true
 local Proj_box = true
-local Proj_color = { 255, 92, 92, 255 }
+local Proj_color = { 255, 255, 255, 255 }
 
 --======================================================================================================================--
 local font = draw.CreateFont( "Tahoma", 12, 800, FONTFLAG_OUTLINE  )
@@ -12,42 +12,26 @@ local function proj_esp()
         draw.SetFont( font )
              
         local function draw_esp(entity_name)
-            local esp_name
-            if entity_name == "CTFStunBall" then 
-                esp_name = "Ball"
-            elseif entity_name == "CTFBall_Ornament" then 
-                esp_name = "Ornament"
-            elseif entity_name == "CTFProjectile_Cleaver" then
-                esp_name = "Cleaver"
-            elseif entity_name == "CTFProjectile_JarMilk" then
-                esp_name = "Milk"
-            elseif entity_name == "CTFProjectile_Rocket" then
-                esp_name = "Rocket"
-            elseif entity_name == "CTFProjectile_SentryRocket" then 
-                esp_name = "Rocket"
-            elseif entity_name == "CTFProjectile_EnergyBall" then
-                esp_name = "Energy Ball"
-            elseif entity_name == "CTFProjectile_EnergyRing" then
-                esp_name = "Energy Ring"
-            elseif entity_name == "CTFFlameManager" then
-                esp_name = "Flames"
-            elseif entity_name == "CTFProjectile_BallOfFire" then
-                esp_name = "Fire"
-            elseif entity_name == "CTFProjectile_Flare" then
-                esp_name = "Flare"
-            elseif entity_name == "CTFGrenadePipebombProjectile" then
-                esp_name = "Sticky"
-            elseif entity_name == "CTFProjectile_Arrow" then
-                esp_name = "Arrow"
-            elseif entity_name == "CTFProjectile_MechanicalArmOrb" then
-                esp_name = "Orb"
-            elseif entity_name == "CTFProjectile_HealingBolt" then
-                esp_name = "Healing Arrow"
-            elseif entity_name == "CTFProjectile_Jar" then
-                esp_name = "Jarate"
-            elseif entity_name == "CTFProjectile_JarGas" then
-                esp_name = "Gas Passer"
-            end
+            
+            local esp_name = {
+                ["CTFStunBall"] = "Ball",
+                ["CTFBall_Ornament"] = "Ornament",
+                ["CTFProjectile_Cleaver"] = "Cleaver",
+                ["CTFProjectile_JarMilk"] = "Milk",
+                ["CTFProjectile_Rocket"] = "Rocket",
+                ["CTFProjectile_SentryRocket"] = "Rocket",
+                ["CTFProjectile_EnergyBall"] = "Energy Ball",
+                ["CTFProjectile_EnergyRing"] = "Energy Ring",
+                ["CTFFlameManager"] = "Flames",
+                ["CTFProjectile_BallOfFire"] = "Fire",
+                ["CTFProjectile_Flare"] = "Flare",
+                ["CTFGrenadePipebombProjectile"] = "Sticky",
+                ["CTFProjectile_Arrow"] = "Arrow",
+                ["CTFProjectile_MechanicalArmOrb"] = "Orb",
+                ["CTFProjectile_HealingBolt"] = "Healing Arrow",
+                ["CTFProjectile_Jar"] = "Jarate",
+                ["CTFProjectile_JarGas"] = "Gas Passer"
+            }
 
             local entity = entities.FindByClass( entity_name )
             for i, projectile in pairs(entity) do 
@@ -98,8 +82,8 @@ local function proj_esp()
                         end                 
                     end
                     if Proj_name == true then
-                        local projectile_length, projectile_height = draw.GetTextSize(esp_name)
-                        draw.Text( projectile_screen[1] - math.floor(projectile_length / 2), projectile_screen[2] - 20, esp_name )
+                        local projectile_length, projectile_height = draw.GetTextSize(esp_name[entity_name])
+                        draw.Text( projectile_screen[1] - math.floor(projectile_length / 2), projectile_screen[2] - 20, esp_name[entity_name])
                     end
                     if Proj_dist == true then
                         local projectile_dist = vector.Distance( entities.GetLocalPlayer():GetAbsOrigin(), projectile:GetAbsOrigin() )
@@ -129,7 +113,7 @@ local function proj_esp()
         draw_esp("CTFProjectile_Rocket") -- rocket
         draw_esp("CTFProjectile_EnergyBall") -- cow mangler
         draw_esp("CTFProjectile_EnergyRing") -- bison, pomson
-        -- draw_esp("CTFFlameManager") -- flamethrower
+        -- draw_esp("CTFFlameManager") -- flamethrower dont use
         draw_esp("CTFProjectile_BallOfFire") -- dragons fury
         draw_esp("CTFProjectile_Flare") -- all flareguns
         draw_esp("CTFGrenadePipebombProjectile") -- stickyies and pipes
@@ -139,7 +123,6 @@ local function proj_esp()
         draw_esp("CTFProjectile_Jar") -- jarate
         draw_esp("CTFProjectile_JarGas") -- gas passer
         draw_esp("CTFProjectile_SentryRocket") -- sentry rocket
-     
     end
 end
 callbacks.Register( "Draw", "proj_esp", proj_esp )
