@@ -20,7 +20,7 @@ end
 local function Drawing()
     draw.SetFont( font )
 
-    if IsWallstuck() == true then
+    if IsWallstuck() == true and entities.GetLocalPlayer() ~= nil then
         draw.Color( 255, 255, 255, 255 )
         draw.Text(Center("Wallstuck"), math.floor(s_height / 1.8), "Wallstuck")
     end
