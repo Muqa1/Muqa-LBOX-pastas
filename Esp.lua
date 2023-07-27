@@ -18,6 +18,9 @@ local box_outline_color = {0, 0, 0}
 local box_fill = false -- doesnt work with dormant fadeout yet | box needs to be on
 local box_fill_color = {255, 255, 255, 25}
 --==--
+local tracers = false 
+local tracers_color = {255,255,255}
+--==--
 local health_bar = true
 local health_bar_backround = {0, 0, 0}
 
@@ -55,6 +58,7 @@ local dormant_duration = 5 -- duration in seconds for players to fade out
 -- dont touch anything from down here, unless u know what ur doing
 local tahoma = draw.CreateFont("Tahoma", 12, 400, FONTFLAG_OUTLINE)
 local tahoma_bold = draw.CreateFont("Tahoma", 12, 800, FONTFLAG_OUTLINE)
+local s_width, s_height = draw.GetScreenSize()
 local dormant_fade_speed = 255 / dormant_duration
 local dormant_start_times = {}
 local conditions_names = {
@@ -170,6 +174,11 @@ local function Drawing_Esp()
 
                 if not draw_dormant_players and entity:IsDormant() then
                     goto continue
+                end
+
+                if tracers then 
+                    draw.Color(tracers_color[1], tracers_color[2], tracers_color[3], alpha)
+                    draw.Line( math.floor(s_width / 2), s_height, feetScreenPos[1], feetScreenPos[2] )
                 end
 
                 if name then
