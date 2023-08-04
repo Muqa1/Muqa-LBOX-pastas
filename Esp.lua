@@ -212,7 +212,7 @@ local function Drawing_Esp()
                         end
                     end
                     draw.Color(textColor[1], textColor[2], textColor[3], alpha)
-                    draw.Text(math.floor(x + w / 2 - (width / 2)), y - height - 2, playerName)
+                    draw.Text(math.floor(x + w / 2 - (width / 2)), y - height, playerName)
                 end
                 
                 draw.SetFont(tahoma)
