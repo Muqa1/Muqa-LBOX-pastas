@@ -1,26 +1,4 @@
-local menuLoaded, ImMenu = pcall(require, "ImMenu")
-assert(menuLoaded, "ImMenu not found, please install it!")
-assert(ImMenu.GetVersion() >= 0.66, "ImMenu version is too old, please update it!")
-
-local lastToggleTime = 0
-local Lbox_Menu_Open = true
-local function toggleMenu()
-    local currentTime = globals.RealTime()
-    if currentTime - lastToggleTime >= 0.1 then
-        if Lbox_Menu_Open == false then
-            Lbox_Menu_Open = true
-        elseif Lbox_Menu_Open == true then
-            Lbox_Menu_Open = false
-        end
-        lastToggleTime = currentTime
-    end
-end
-
-local tahoma = draw.CreateFont( "Tahoma", 12, 400, FONTFLAG_OUTLINE )
-
-local s_width, s_height = draw.GetScreenSize()
-
-local Menu = { -- config
+local Menu = { -- this is the config that will be loaded every time u load the script
 
     colors = { 
         -- Local = {},
@@ -34,7 +12,7 @@ local Menu = { -- config
         supplies = {255,255,255},
     },
 
-    tabs = {
+    tabs = { -- dont touch this, this is just for managing the tabs in the menu
         global = true, 
         world = false, 
         players = false, 
@@ -42,27 +20,27 @@ local Menu = { -- config
     },
 
     global_tab = {
-        active = false,
+        active = true,
         max_distance = 2500,
         tracer_pos = {
             from = {"Top", "Center", "Bottom"},
-            selected_from = 1,
+            selected_from = 1, -- 1 is top, 2 is center and so on
             to = {"Top", "Center", "Bottom"},
             selected_to = 1,
         },
     },
 
     world_tab = {
-        active = false,
-        alpha = 10,
+        active = true,
+        alpha = 5,
         health_and_ammospin = 10,
         ignore = {
-            -- health_packs = false, 
+            -- health_packs = false, -- i didnt find a way to differentiate them
             -- ammo_packs = false, 
             supplies = false,
             enemy_projectiles = false,
             teammate_projectiles = true, 
-            -- halloween_gifts = false,
+            -- halloween_gifts = false, -- these are not done yet
             -- mvm_money = false
         },
         draw = {
@@ -73,7 +51,7 @@ local Menu = { -- config
     },
 
     players_tab = {
-        active = false,
+        active = true,
         alpha = 10,
         ignore = {
             friends = false,
@@ -95,7 +73,7 @@ local Menu = { -- config
     },
 
     buildings_tab = {
-        active = false,
+        active = true,
         alpha = 10,
         ignore = {
             teammates = true,
@@ -109,10 +87,36 @@ local Menu = { -- config
             level_bar = true,
             box = false,
             tracer = false,
-            conds = true
+            conds = true,
+            sentry_range = true,
+            sentry_range_segments = 20,
         }
     }
 }
+
+
+
+local menuLoaded, ImMenu = pcall(require, "ImMenu")
+assert(menuLoaded, "ImMenu not found, please install it!")
+assert(ImMenu.GetVersion() >= 0.66, "ImMenu version is too old, please update it!")
+
+local lastToggleTime = 0
+local Lbox_Menu_Open = true
+local function toggleMenu()
+    local currentTime = globals.RealTime()
+    if currentTime - lastToggleTime >= 0.1 then
+        if Lbox_Menu_Open == false then
+            Lbox_Menu_Open = true
+        elseif Lbox_Menu_Open == true then
+            Lbox_Menu_Open = false
+        end
+        lastToggleTime = currentTime
+    end
+end
+
+local tahoma = draw.CreateFont( "Tahoma", 12, 400, FONTFLAG_OUTLINE )
+
+local s_width, s_height = draw.GetScreenSize()
 
 local function calculateTracerPositions(x, y, w, height)
     local from_pos = {(s_width / 2), 0}
@@ -305,6 +309,43 @@ local function IsFriend(idx, inParty)
     return false
 end
 
+local function serializeTable(tbl)
+    local result = "{\n"
+    for key, value in pairs(tbl) do
+        result = result .. "    " .. key .. " = "
+        if type(value) == "table" then
+            result = result .. serializeTable(value) .. ",\n"
+        elseif type(value) == "string" then
+            result = result .. '"' .. value .. '",\n'
+        else
+            result = result .. tostring(value) .. ",\n"
+        end
+    end
+    result = result .. "}"
+    return result
+end
+
+local function draw_circle(pos, segments, radius)
+    local angleIncrement = 360 / segments
+    local vertices = {}
+    for i = 1, segments do
+        local angle = math.rad(i * angleIncrement)
+        local x = pos.x + math.cos(angle) * radius
+        local y = pos.y + math.sin(angle) * radius
+        local z = pos.z
+        vertices[i] = client.WorldToScreen(Vector3(x, y, z))
+    end    
+    for i = 1, segments do
+        local j = i + 1
+        if j > segments then j = 1 end
+        local vertex1, vertex2 = vertices[i], vertices[j]     
+        if vertex1 and vertex2 then
+            draw.Line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
+        end
+    end
+end
+
+
 callbacks.Register( "Draw", function()
 
     if input.IsButtonPressed( KEY_INSERT ) then 
@@ -454,7 +495,8 @@ callbacks.Register( "Draw", function()
             ImMenu.EndFrame()
 
             ImMenu.BeginFrame(1)
-            --==--
+            Menu.buildings_tab.ignore.enemies = ImMenu.Checkbox("Enemies", Menu.buildings_tab.ignore.enemies)
+            Menu.buildings_tab.ignore.teammates = ImMenu.Checkbox("Teammates", Menu.buildings_tab.ignore.teammates)
             ImMenu.EndFrame()
 
             ImMenu.BeginFrame(1)
@@ -473,7 +515,13 @@ callbacks.Register( "Draw", function()
             Menu.buildings_tab.draw.box =  ImMenu.Checkbox("Box", Menu.buildings_tab.draw.box)
             Menu.buildings_tab.draw.tracer =  ImMenu.Checkbox("Tracer", Menu.buildings_tab.draw.tracer)
             Menu.buildings_tab.draw.conds =  ImMenu.Checkbox("Conditions", Menu.buildings_tab.draw.conds)
+            Menu.buildings_tab.draw.sentry_range =  ImMenu.Checkbox("Sentry Range", Menu.buildings_tab.draw.sentry_range)
             ImMenu.EndFrame()
+            if Menu.buildings_tab.draw.sentry_range then 
+                ImMenu.BeginFrame(1)
+                Menu.buildings_tab.draw.sentry_range_segments = ImMenu.Slider("Sentry Range Cricle Segments", Menu.buildings_tab.draw.sentry_range_segments , 3, 50)
+                ImMenu.EndFrame()
+            end
         end
 
         ImMenu.End()
@@ -494,7 +542,7 @@ callbacks.Register( "Draw", function()
                         local name
                         local colorWorld = nil
 
-                        if entity_class == "CBaseAnimating" then 
+                        if entity_class == "CBaseAnimating" or entity_class == "CTFAmmoPack" then 
                             name = "Supplies"
                             colorWorld = Menu.colors.supplies
                             if entity:GetPropFloat("m_flPlaybackRate") ~= Menu.world_tab.health_and_ammospin then
@@ -554,7 +602,10 @@ callbacks.Register( "Draw", function()
                                 local width , height = draw.GetTextSize( name )
                                 draw.Text( math.floor(x + w / 2 - (width / 2)), y - height, name )
                             end
-                            if Menu.world_tab.draw.box then
+                            if Menu.world_tab.draw.box then 
+                                if entity_class == "CTFAmmoPack" then -- looks retarded on dropped ammo
+                                    goto projectile_esp_continue
+                                end
                                 draw.OutlinedRect(x, y, x + w, y + h)
                                 draw.Color(0,0,0, alpha)
                                 draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
@@ -566,6 +617,7 @@ callbacks.Register( "Draw", function()
             end
             if not Menu.world_tab.ignore.supplies then
                 draw_world_esp("CBaseAnimating", 30, 0)
+                draw_world_esp("CTFAmmoPack", 0, 0)
             end
             if not Menu.world_tab.ignore.enemy_projectiles or not Menu.world_tab.ignore.teammate_projectiles then 
                 for i, projectile in ipairs(projectiles) do 
@@ -746,6 +798,17 @@ callbacks.Register( "Draw", function()
                 local buildings = entities.FindByClass( entity_name )
                 for i,b in pairs(buildings) do 
                     if not b:IsDormant() and distance_check(b, localPlayer) then
+                        local localTeam = localPlayer:GetTeamNumber()
+                        local enemyTeam = b:GetTeamNumber()
+    
+    
+                        if Menu.buildings_tab.ignore.enemies and enemyTeam ~= localTeam then -- ignoring
+                            goto buildings_continue
+                        end
+                        if Menu.buildings_tab.ignore.teammates and enemyTeam == localTeam then 
+                            goto buildings_continue
+                        end
+
                         local name
                         local top_padding = Vector3(0,0,top_padding)
                         local bottom_padding = Vector3(0,0,bottom_padding)
@@ -765,8 +828,16 @@ callbacks.Register( "Draw", function()
                             local h = math.floor(height)
 
                             local alpha = math.floor(255 * (Menu.buildings_tab.alpha / 10))
+
+                            local colorBuildings = nil
+                            if enemyTeam ~= localTeam then
+                                colorBuildings = Menu.colors.enemy
+                            end
+                            if enemyTeam == localTeam then
+                                colorBuildings = Menu.colors.teammate
+                            end
                             
-                            draw.Color(255,255,255,alpha)
+                            draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
 
                             if Menu.buildings_tab.draw.box then 
                                 draw.OutlinedRect(x, y, x + w, y + h)
@@ -775,12 +846,12 @@ callbacks.Register( "Draw", function()
                             end
                             if Menu.buildings_tab.draw.name then  
                                 name = building_names[b:GetClass()]
-                                draw.Color(255,255,255,alpha)
+                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
                                 local width , height = draw.GetTextSize( name )
                                 draw.Text( math.floor(x + w / 2 - (width / 2)), y - height, name )
                             end
                             if Menu.buildings_tab.draw.tracer then 
-                                draw.Color(255,255,255,alpha)
+                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
                                 local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
                                 draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
                             end
@@ -807,7 +878,7 @@ callbacks.Register( "Draw", function()
                                     draw.Color(Menu.colors.over_heal[1],Menu.colors.over_heal[2],Menu.colors.over_heal[3], alpha)
                                 end
                                 draw.FilledRect(x - 6, (y + h) - healthBarSize, x - 4, (y + h) ) -- healthbar
-                                draw.Color(255,255,255,alpha)
+                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
                             end
                             if Menu.buildings_tab.draw.level_bar then 
                                 local level = b:GetPropInt("m_iUpgradeLevel")
@@ -854,7 +925,12 @@ callbacks.Register( "Draw", function()
                                     end
                                 end
                             end
+                            if Menu.buildings_tab.draw.sentry_range and b:GetClass() == "CObjectSentrygun" then 
+                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
+                                draw_circle(b:GetAbsOrigin(),Menu.buildings_tab.draw.sentry_range_segments,1100)
+                            end
                         end
+                        ::buildings_continue::
                     end
                 end
             end
