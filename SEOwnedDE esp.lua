@@ -348,7 +348,7 @@ end
 
 callbacks.Register( "Draw", function()
 
-    if input.IsButtonPressed( KEY_INSERT ) then 
+    if input.IsButtonPressed( KEY_HOME ) then 
         toggleMenu()
     end
 
