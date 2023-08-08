@@ -60,6 +60,8 @@ local Menu = { -- this is the config that will be loaded every time u load the s
             invisible = false
         },
         draw = {
+            text_pos = {"Normal", "Top Left", "Bottom Left", "Right Top"},
+            selected_text_pos = 1,
             name = true,
             class = false,
             health = true, 
@@ -69,6 +71,12 @@ local Menu = { -- this is the config that will be loaded every time u load the s
             box = false,
             tracer = false,
             conds = true,
+            bars_thickness = 2,
+            health_bar_pos = {"Left", "Bottom"},
+            selected_health_bar_pos = 1,
+            uber_bar_pos = {"Left", "Bottom"},
+            selected_uber_bar_pos = 2,
+            bars_static_bacrkound = false,
         },
     },
 
@@ -202,7 +210,7 @@ local conditions_names = {
     [5] = "UBER",
     [7] = "TAUNT",
 
-    [11] = "CRITS",
+    [11] = "CRITS", -- ape
     [33] = "CRITS",
     [34] = "CRITS",
     [35] = "CRITS",
@@ -352,7 +360,7 @@ callbacks.Register( "Draw", function()
         toggleMenu()
     end
 
-    if Lbox_Menu_Open == true and ImMenu.Begin("SEOwnedDE esp lua for lmaobox", true) then -- managing the menu
+    if Lbox_Menu_Open == true and ImMenu.Begin("Custom lua esp for lmaobox by Muqa", true) then -- managing the menu
 
         ImMenu.BeginFrame(1) -- tabs
 
@@ -463,6 +471,11 @@ callbacks.Register( "Draw", function()
             ImMenu.EndFrame()
 
             ImMenu.BeginFrame(1)
+            ImMenu.Text("Text Position")
+            Menu.players_tab.draw.selected_text_pos = ImMenu.Option(Menu.players_tab.draw.selected_text_pos, Menu.players_tab.draw.text_pos)
+            ImMenu.EndFrame()
+
+            ImMenu.BeginFrame(1)
             Menu.players_tab.draw.name =  ImMenu.Checkbox("Name", Menu.players_tab.draw.name)
             Menu.players_tab.draw.class =  ImMenu.Checkbox("Class", Menu.players_tab.draw.class)
             Menu.players_tab.draw.health =  ImMenu.Checkbox("Health", Menu.players_tab.draw.health)
@@ -479,6 +492,31 @@ callbacks.Register( "Draw", function()
             ImMenu.BeginFrame(1)
             Menu.players_tab.draw.conds =  ImMenu.Checkbox("Conditions", Menu.players_tab.draw.conds)
             ImMenu.EndFrame()
+
+            if Menu.players_tab.draw.health_bar or Menu.players_tab.draw.uber_bar then 
+
+                if Menu.players_tab.draw.health_bar then 
+                    ImMenu.BeginFrame(1)
+                    ImMenu.Text("Health Bar Position")
+                    Menu.players_tab.draw.selected_health_bar_pos = ImMenu.Option(Menu.players_tab.draw.selected_health_bar_pos, Menu.players_tab.draw.health_bar_pos)
+                    ImMenu.EndFrame()    
+                end
+
+                if Menu.players_tab.draw.uber_bar then 
+                    ImMenu.BeginFrame(1)
+                    ImMenu.Text("Uber Bar Position")
+                    Menu.players_tab.draw.selected_uber_bar_pos = ImMenu.Option(Menu.players_tab.draw.selected_uber_bar_pos, Menu.players_tab.draw.uber_bar_pos)
+                    ImMenu.EndFrame()    
+                end
+
+                ImMenu.BeginFrame(1)
+                Menu.players_tab.draw.bars_thickness = ImMenu.Slider("Health & Uber Bar Thickness", Menu.players_tab.draw.bars_thickness , 1, 10)
+                ImMenu.EndFrame()
+
+                ImMenu.BeginFrame(1)
+                Menu.players_tab.draw.bars_static_bacrkound = ImMenu.Checkbox("Health & Uber Bar Static Backround", Menu.players_tab.draw.bars_static_bacrkound)
+                ImMenu.EndFrame()
+            end
         end
 
         if Menu.tabs.buildings == true then 
@@ -684,11 +722,17 @@ callbacks.Register( "Draw", function()
 
                         local alpha = math.floor(255 * (Menu.players_tab.alpha / 10))
 
+                        local text_pos_table = {}
+
                         draw.Color(espColor[1], espColor[2], espColor[3],alpha)
 
                         if Menu.players_tab.draw.name then 
                             local name_width = draw.GetTextSize(p:GetName())
-                            draw.Text(math.floor(x + w / 2 - (name_width / 2)), y - 15, p:GetName())
+                            if Menu.players_tab.draw.selected_text_pos == 1 then 
+                                draw.Text(math.floor(x + w / 2 - (name_width / 2)), y - 15, p:GetName())
+                            else
+                                table.insert(text_pos_table, {p:GetName(), {espColor[1], espColor[2], espColor[3],alpha} })
+                            end
                         end
 
                         if Menu.players_tab.draw.box then 
@@ -701,15 +745,43 @@ callbacks.Register( "Draw", function()
                             local health = p:GetHealth()
                             local maxHealth = p:GetMaxHealth()
                             local percentageHealth = math.floor(health / maxHealth * 100)
-                            local healthBarSize = math.floor(h * (health / maxHealth))
-                            local maxHealthBarSize = math.floor(h)
+                            local healthBarSize = nil
+                            local maxHealthBarSize = nil
 
-                            if percentageHealth > 100 then 
-                                healthBarSize = maxHealthBarSize
+                            local health_bar_pos = nil
+                            local health_bar_backround_pos = nil
+
+                            if Menu.players_tab.draw.selected_health_bar_pos == 1 then -- left
+                                healthBarSize = math.floor(h * (health / maxHealth))
+                                maxHealthBarSize = math.floor(h)
+                                if percentageHealth > 100 then 
+                                    healthBarSize = maxHealthBarSize
+                                end
+                                health_bar_pos = {x - (4 + Menu.players_tab.draw.bars_thickness), (y + h) - healthBarSize, x - 4, (y + h)}
+                                if not Menu.players_tab.draw.bars_static_bacrkound then
+                                    health_bar_backround_pos = {health_bar_pos[1] - 1, health_bar_pos[2] - 1, health_bar_pos[3] + 1, health_bar_pos[4] + 1}
+                                else
+                                    health_bar_backround_pos = {x - (5 + Menu.players_tab.draw.bars_thickness), y - 1, x - 3, (y + h) + 1}
+                                end
+                            end
+
+                            if Menu.players_tab.draw.selected_health_bar_pos == 2 then -- down
+                                healthBarSize = math.floor(w * (health / maxHealth))
+                                maxHealthBarSize = math.floor(w)
+                                if percentageHealth > 100 then 
+                                    healthBarSize = maxHealthBarSize
+                                end
+                                health_bar_pos = {x + 1, y + h + 3, x - 1 + healthBarSize, y + h + 3 + Menu.players_tab.draw.bars_thickness}
+
+                                if not Menu.players_tab.draw.bars_static_bacrkound then
+                                    health_bar_backround_pos = {health_bar_pos[1] - 1, health_bar_pos[2] - 1, health_bar_pos[3] + 1, health_bar_pos[4] + 1}
+                                else
+                                    health_bar_backround_pos = {x, y + h + 2, x + w, y + h + 4 + Menu.players_tab.draw.bars_thickness}
+                                end
                             end
 
                             draw.Color(0,0,0,alpha)
-                            draw.FilledRect(x - 7, (y + h) - healthBarSize - 1, x - 3, (y + h) + 1 ) -- backround
+                            draw.FilledRect(health_bar_backround_pos[1], health_bar_backround_pos[2], health_bar_backround_pos[3], health_bar_backround_pos[4]) -- backround
 
                             if percentageHealth < 101 then
                                 draw.Color(255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha)
@@ -719,7 +791,8 @@ callbacks.Register( "Draw", function()
                             elseif percentageHealth > 100 then 
                                 draw.Color(Menu.colors.over_heal[1],Menu.colors.over_heal[2],Menu.colors.over_heal[3], alpha)
                             end
-                            draw.FilledRect(x - 6, (y + h) - healthBarSize, x - 4, (y + h) ) -- healthbar
+
+                            draw.FilledRect(health_bar_pos[1], health_bar_pos[2], health_bar_pos[3], health_bar_pos[4]) -- healthbar
                             draw.Color(espColor[1],espColor[2],espColor[3],alpha)
                         end
 
@@ -730,11 +803,43 @@ callbacks.Register( "Draw", function()
                                 local maxUber = 1.0
                                 local percentageUber = math.floor(uber / maxUber * 100)
                                 local uberBarSize = math.floor(w * (uber / maxUber))
+    
+                                local uber_bar_pos = nil
+                                local uber_bar_backround_pos = nil
+
+                                if Menu.players_tab.draw.selected_uber_bar_pos == 2 then -- down
+                                    uber_bar_pos = {x + 1, y + h + 3, x - 1 + uberBarSize, y + h + 3 + Menu.players_tab.draw.bars_thickness}
+                                    if not Menu.players_tab.draw.bars_static_bacrkound then
+                                        uber_bar_backround_pos = {uber_bar_pos[1] - 1, uber_bar_pos[2] - 1, uber_bar_pos[3] + 1, uber_bar_pos[4] + 1}
+                                    else
+                                        uber_bar_backround_pos = {x, y + h + 2, x + w, y + h + 4 + Menu.players_tab.draw.bars_thickness}
+                                    end
+                                end
+
+                                if Menu.players_tab.draw.selected_uber_bar_pos == 1 then -- left
+                                    uber_bar_pos = {x - (4 + Menu.players_tab.draw.bars_thickness), (y + h) - uberBarSize, x - 4, (y + h)}
+                                    if not Menu.players_tab.draw.bars_static_bacrkound then
+                                        uber_bar_backround_pos = {uber_bar_pos[1] - 1, uber_bar_pos[2] - 1, uber_bar_pos[3] + 1, uber_bar_pos[4] + 1}
+                                    else
+                                        uber_bar_backround_pos = {x - (5 + Menu.players_tab.draw.bars_thickness), y - 1, x - 3, (y + h) + 1}
+                                    end
+                                end
+
+                                if Menu.players_tab.draw.health_bar and Menu.players_tab.draw.selected_health_bar_pos == 2 and Menu.players_tab.draw.selected_uber_bar_pos == 2 then 
+                                    uber_bar_pos = {uber_bar_pos[1], uber_bar_pos[2] + 4 + Menu.players_tab.draw.bars_thickness, uber_bar_pos[3], uber_bar_pos[4] + 4 + Menu.players_tab.draw.bars_thickness}
+                                    uber_bar_backround_pos = {uber_bar_backround_pos[1], uber_bar_backround_pos[2] + 4 + Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[3], uber_bar_backround_pos[4] + 4 + Menu.players_tab.draw.bars_thickness}
+                                end
+
+                                if Menu.players_tab.draw.health_bar and Menu.players_tab.draw.selected_health_bar_pos == 1 and Menu.players_tab.draw.selected_uber_bar_pos == 1 then 
+                                    uber_bar_pos = {uber_bar_pos[1] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_pos[2], uber_bar_pos[3] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_pos[4]}
+                                    uber_bar_backround_pos = {uber_bar_backround_pos[1] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[2], uber_bar_backround_pos[3] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[4]}
+                                end
+
                                 if percentageUber ~= 0 then
                                     draw.Color(0,0,0,alpha)
-                                    draw.FilledRect(x, y + h + 2, x - 1 + uberBarSize + 1, y + h + 6)
+                                    draw.FilledRect(uber_bar_backround_pos[1], uber_bar_backround_pos[2], uber_bar_backround_pos[3], uber_bar_backround_pos[4]) -- backround 
                                     draw.Color(Menu.colors.uber[1], Menu.colors.uber[2], Menu.colors.uber[3],alpha)
-                                    draw.FilledRect(x + 1, y + h + 3, x - 1 + uberBarSize, y + h + 5)
+                                    draw.FilledRect(uber_bar_pos[1], uber_bar_pos[2], uber_bar_pos[3], uber_bar_pos[4]) -- uber bar
                                 end
                             end
                         end
@@ -750,7 +855,7 @@ callbacks.Register( "Draw", function()
                             local playerConditions = getConditions(p)
     
                             if #playerConditions > 0 then
-                            local x_w_5 = x + w + 5
+                            local x_w_5 = x + w + 5 -- the conds start position X
                             for index, condition in ipairs(playerConditions) do
                                 local drawColor = { 0, 255, 179, alpha }
 
@@ -779,13 +884,39 @@ callbacks.Register( "Draw", function()
                                         drawColor = { 255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha } 
                                     end
                                 end
-            
-                                local width, length = draw.GetTextSize(condition)
-                                draw.Color(table.unpack(drawColor)) 
-                                draw.Text(x_w_5, y + y_offset, condition)
+
+                                if Menu.players_tab.draw.selected_text_pos == 1 then
+                                    local width, length = draw.GetTextSize(condition)
+                                    draw.Color(table.unpack(drawColor)) 
+                                    draw.Text(x_w_5, y + y_offset, condition)
+                                    y_offset = y_offset + length
+                                else
+                                    table.insert(text_pos_table, {condition, drawColor})
+                                end
+                            end
+                        end
+
+                        if Menu.players_tab.draw.selected_text_pos ~= 1 then 
+                            local y_offset = 0
+                            for i, text in ipairs(text_pos_table) do 
+                                draw.Color(text[2][1],text[2][2],text[2][3],alpha)
+                                local width, length = draw.GetTextSize(text[1])
+                                local text_position = nil 
+                                if Menu.players_tab.draw.selected_text_pos == 2 then 
+                                    text_position = {x, y - 15 - y_offset}
+                                end
+                                if Menu.players_tab.draw.selected_text_pos == 3 then 
+                                    text_position = {x, y + h + 15 + y_offset}
+                                end
+                                if Menu.players_tab.draw.selected_text_pos == 4 then 
+                                    text_position = {x + w + 5, y + y_offset}
+                                end
+                                draw.Text(text_position[1], text_position[2], text[1])
                                 y_offset = y_offset + length
                             end
                         end
+
+
                     end  
                 end
                 ::esp_continue::
