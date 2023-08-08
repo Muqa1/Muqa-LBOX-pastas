@@ -22,6 +22,8 @@ local Menu = { -- this is the config that will be loaded every time u load the s
     global_tab = {
         active = true,
         max_distance = 2500,
+        fonts = {"Tahoma", "Tahoma Bold", "Verdana", "Consolas", "Arial", "TF2 Build"},
+        selected_font = 3,
         tracer_pos = {
             from = {"Top", "Center", "Bottom"},
             selected_from = 1, -- 1 is top, 2 is center and so on
@@ -31,7 +33,7 @@ local Menu = { -- this is the config that will be loaded every time u load the s
     },
 
     world_tab = {
-        active = true,
+        active = false,
         alpha = 5,
         health_and_ammospin = 10,
         ignore = {
@@ -52,6 +54,7 @@ local Menu = { -- this is the config that will be loaded every time u load the s
 
     players_tab = {
         active = true,
+        manual_headheight = true, -- i added this cuz sometimes the prop bugs out and causes the player esp to be very small https://imgur.com/a/bDFyBFd
         alpha = 10,
         ignore = {
             friends = false,
@@ -60,23 +63,23 @@ local Menu = { -- this is the config that will be loaded every time u load the s
             invisible = false
         },
         draw = {
-            text_pos = {"Normal", "Top Left", "Bottom Left", "Right Top"},
-            selected_text_pos = 1,
+            text_pos = {"Normal", "Top Left", "Bottom Left", "Right Top", "Left Top", "Center", "Bottom Center", "Top Center"},
+            selected_text_pos = 8,
             name = true,
             class = false,
             health = true, 
             health_bar = true, 
             uber = true,
             uber_bar = true,
-            box = false,
+            box = true,
             tracer = false,
             conds = true,
-            bars_thickness = 2,
+            bars_thickness = 3,
             health_bar_pos = {"Left", "Bottom"},
-            selected_health_bar_pos = 1,
+            selected_health_bar_pos = 2,
             uber_bar_pos = {"Left", "Bottom"},
             selected_uber_bar_pos = 2,
-            bars_static_bacrkound = false,
+            bars_static_bacrkound = true,
         },
     },
 
@@ -89,14 +92,14 @@ local Menu = { -- this is the config that will be loaded every time u load the s
         },
         draw = {
             name = true,
-            health = true, 
+            health = false, 
             health_bar = true,
-            level = true,
-            level_bar = true,
+            level = false,
+            level_bar = false,
             box = false,
             tracer = false,
-            conds = true,
-            sentry_range = true,
+            conds = false,
+            sentry_range = false,
             sentry_range_segments = 20,
         }
     }
@@ -122,7 +125,14 @@ local function toggleMenu()
     end
 end
 
-local tahoma = draw.CreateFont( "Tahoma", 12, 400, FONTFLAG_OUTLINE )
+local fonts = {
+    [1] = draw.CreateFont( "Tahoma", 12, 400, FONTFLAG_OUTLINE ),
+    [2] = draw.CreateFont( "Tahoma", 12, 800, FONTFLAG_OUTLINE ),
+    [3] = draw.CreateFont( "Verdana", 14, 300, FONTFLAG_OUTLINE ),
+    [4] = draw.CreateFont( "Consolas", 12, 400, FONTFLAG_OUTLINE ),
+    [5] = draw.CreateFont( "Arial", 14, 400, FONTFLAG_OUTLINE ),
+    [6] = draw.CreateFont( "TF2 Build", 12, 400, FONTFLAG_OUTLINE )
+}
 
 local s_width, s_height = draw.GetScreenSize()
 
@@ -186,15 +196,15 @@ local projectile_names = {
 }
 
 local classes = {
-    [1] = "Scout",
-    [2] = "Sniper",
-    [3] = "Soldier",
-    [4] = "Demoman",
-    [5] = "Medic",
-    [6] = "Heavy",
-    [7] = "Pyro",
-    [8] = "Spy",
-    [9] = "Engineer",
+    [1] = {"Scout", Vector3(0,0,68)},
+    [2] = {"Sniper", Vector3(0,0,75)}, -- tall boi
+    [3] = {"Soldier", Vector3(0,0,68)},
+    [4] = {"Demoman", Vector3(0,0,68)},
+    [5] = {"Medic", Vector3(0,0,75)}, -- tall boi
+    [6] = {"Heavy", Vector3(0,0,68)},
+    [7] = {"Pyro", Vector3(0,0,68)},
+    [8] = {"Spy", Vector3(0,0,75)}, -- tall boi
+    [9] = {"Engineer", Vector3(0,0,68)},
 }
 
 local building_names = {
@@ -256,7 +266,7 @@ end
 local function getConditions(player)
     local playerConditions = {}
     if Menu.players_tab.draw.class then 
-        table.insert(playerConditions, classes[player:GetPropInt("m_iClass")])
+        table.insert(playerConditions, classes[player:GetPropInt("m_iClass")][1])
     end
     if Menu.players_tab.draw.health then
         local health = player:GetHealth()
@@ -356,7 +366,7 @@ end
 
 callbacks.Register( "Draw", function()
 
-    if input.IsButtonPressed( KEY_HOME ) then 
+    if input.IsButtonPressed( KEY_END ) or input.IsButtonPressed( KEY_INSERT ) or input.IsButtonPressed( KEY_F11 ) then 
         toggleMenu()
     end
 
@@ -396,11 +406,20 @@ callbacks.Register( "Draw", function()
 
         if Menu.tabs.global == true then 
             ImMenu.BeginFrame(1)
+            ImMenu.Text("The menu keys are INSERT, END and F11")
+            ImMenu.EndFrame()
+
+            ImMenu.BeginFrame(1)
             Menu.global_tab.active = ImMenu.Checkbox("Active", Menu.global_tab.active)
             ImMenu.EndFrame()
 
             ImMenu.BeginFrame(1)
             Menu.global_tab.max_distance = ImMenu.Slider("Max Distance", Menu.global_tab.max_distance , 100, 6000)
+            ImMenu.EndFrame()
+
+            ImMenu.BeginFrame(1)
+            ImMenu.Text("Esp Font")
+            Menu.global_tab.selected_font = ImMenu.Option(Menu.global_tab.selected_font, Menu.global_tab.fonts)
             ImMenu.EndFrame()
             
             ImMenu.BeginFrame(1)
@@ -449,6 +468,7 @@ callbacks.Register( "Draw", function()
         if Menu.tabs.players == true then 
             ImMenu.BeginFrame(1)
             Menu.players_tab.active =  ImMenu.Checkbox("Active", Menu.players_tab.active)
+            Menu.players_tab.manual_headheight =  ImMenu.Checkbox("Use Manual Head Height", Menu.players_tab.manual_headheight)
             ImMenu.EndFrame()
 
             ImMenu.BeginFrame(1)
@@ -567,9 +587,9 @@ callbacks.Register( "Draw", function()
 
     --=====================--
     -- starting drawing esp 
-    draw.SetFont( tahoma )
+    draw.SetFont( fonts[Menu.global_tab.selected_font] )
     local localPlayer = entities.GetLocalPlayer()
-    if Menu.global_tab.active then
+    if Menu.global_tab.active and not engine.IsGameUIVisible() then
 
         if Menu.world_tab.active then 
             local function draw_world_esp(entity_name, top_padding, bottom_padding)
@@ -620,7 +640,7 @@ callbacks.Register( "Draw", function()
                         if w2s_bottom_pos ~= nil and w2s_top_pos ~= nil then 
 
                             local height = math.abs(w2s_top_pos[2] - w2s_bottom_pos[2])
-                            local width = height * 1.2
+                            local width = height * 1.4 -- 1.2
 
                             local x = math.floor(w2s_top_pos[1] - width * 0.5)
                             local y = math.floor(w2s_top_pos[2])
@@ -675,19 +695,29 @@ callbacks.Register( "Draw", function()
                     local espColor = nil
 
 
-                    if Menu.players_tab.ignore.friends and IsFriend(pIndex, true) then -- ignoring
+                    if Menu.players_tab.ignore.friends and IsFriend(pIndex, true) then
                         goto esp_continue
                     end
+                    
                     if Menu.players_tab.ignore.teammates and enemyTeam == localTeam then 
+                        if IsFriend(pIndex, true) and not Menu.players_tab.ignore.friends then 
+                            goto friends_vip_ignore_check_bypass -- was ignoring friends when ignoring teammates
+                        end
                         goto esp_continue
                     end
+                    
                     if Menu.players_tab.ignore.enemies and enemyTeam ~= localTeam then 
                         goto esp_continue
                     end
+                    
                     if Menu.players_tab.ignore.invisible and p:InCond(4) then 
+                        if IsFriend(pIndex, true) and not Menu.players_tab.ignore.friends then 
+                            goto friends_vip_ignore_check_bypass
+                        end
                         goto esp_continue
                     end
-
+                    
+                    ::friends_vip_ignore_check_bypass::
 
                     if enemyTeam ~= localTeam then 
                         espColor = Menu.colors.enemy
@@ -705,7 +735,20 @@ callbacks.Register( "Draw", function()
 
                     local padding = Vector3(0, 0, 7)
 
-                    local headPos = (p:GetAbsOrigin() + p:GetPropVector("localdata", "m_vecViewOffset[0]")) + padding 
+                    local headPos = nil
+
+                    if Menu.players_tab.manual_headheight then
+                        local height = nil 
+                        if p:GetPropInt( "m_fFlags" ) & 2 == 0 then 
+                            height = classes[p:GetPropInt("m_iClass")][2].z
+                        else
+                            height = 55
+                        end
+                        headPos = p:GetAbsOrigin() + Vector3(0,0,height) + padding
+                    else
+                        headPos = (p:GetAbsOrigin() + p:GetPropVector("localdata", "m_vecViewOffset[0]")) + padding 
+                    end
+
                     local feetPos = p:GetAbsOrigin() - padding
 
                     local headScreenPos = client.WorldToScreen(headPos)
@@ -859,7 +902,7 @@ callbacks.Register( "Draw", function()
                             for index, condition in ipairs(playerConditions) do
                                 local drawColor = { 0, 255, 179, alpha }
 
-                                if condition == classes[p:GetPropInt("m_iClass")] then
+                                if condition == classes[p:GetPropInt("m_iClass")][1] then
                                     drawColor = { 255, 255, 255, alpha }
                                 end
             
@@ -901,16 +944,16 @@ callbacks.Register( "Draw", function()
                             for i, text in ipairs(text_pos_table) do 
                                 draw.Color(text[2][1],text[2][2],text[2][3],alpha)
                                 local width, length = draw.GetTextSize(text[1])
-                                local text_position = nil 
-                                if Menu.players_tab.draw.selected_text_pos == 2 then 
-                                    text_position = {x, y - 15 - y_offset}
-                                end
-                                if Menu.players_tab.draw.selected_text_pos == 3 then 
-                                    text_position = {x, y + h + 15 + y_offset}
-                                end
-                                if Menu.players_tab.draw.selected_text_pos == 4 then 
-                                    text_position = {x + w + 5, y + y_offset}
-                                end
+                                local text_positions = {
+                                    [2] = {x, y - 15 - y_offset},
+                                    [3] = {x, y + h + 15 + y_offset},
+                                    [4] = {x + w + 5, y + y_offset},
+                                    [5] = {x - 5 - width, y + y_offset},
+                                    [6] = {math.floor(x + (w / 2) - (width / 2)), math.floor(y + (h / 2) + y_offset)},
+                                    [7] = {math.floor(x + (w / 2) - (width / 2)), y + h + 10 + y_offset},
+                                    [8] = {math.floor(x + (w / 2) - (width / 2)), y - 15 - y_offset}
+                                }
+                                local text_position = text_positions[Menu.players_tab.draw.selected_text_pos]
                                 draw.Text(text_position[1], text_position[2], text[1])
                                 y_offset = y_offset + length
                             end
