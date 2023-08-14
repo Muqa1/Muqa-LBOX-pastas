@@ -17,13 +17,14 @@ local Menu = { -- this is the config that will be loaded every time u load the s
         world = false, 
         players = false, 
         buildings = false,
+        config = false,
     },
 
     global_tab = {
         active = true,
         max_distance = 2500,
         fonts = {"Tahoma", "Tahoma Bold", "Verdana", "Consolas", "Arial", "TF2 Build"},
-        selected_font = 3,
+        selected_font = 1,
         tracer_pos = {
             from = {"Top", "Center", "Bottom"},
             selected_from = 1, -- 1 is top, 2 is center and so on
@@ -64,7 +65,7 @@ local Menu = { -- this is the config that will be loaded every time u load the s
         },
         draw = {
             text_pos = {"Normal", "Top Left", "Bottom Left", "Right Top", "Left Top", "Center", "Bottom Center", "Top Center"},
-            selected_text_pos = 8,
+            selected_text_pos = 1,
             name = true,
             class = false,
             health = true, 
@@ -74,17 +75,17 @@ local Menu = { -- this is the config that will be loaded every time u load the s
             box = true,
             tracer = false,
             conds = true,
-            bars_thickness = 3,
+            bars_thickness = 2,
             health_bar_pos = {"Left", "Bottom"},
-            selected_health_bar_pos = 2,
+            selected_health_bar_pos = 1,
             uber_bar_pos = {"Left", "Bottom"},
-            selected_uber_bar_pos = 2,
-            bars_static_bacrkound = true,
+            selected_uber_bar_pos = 1,
+            bars_static_bacrkound = false,
         },
     },
 
     buildings_tab = {
-        active = true,
+        active = false,
         alpha = 10,
         ignore = {
             teammates = true,
@@ -126,12 +127,12 @@ local function toggleMenu()
 end
 
 local fonts = {
-    [1] = draw.CreateFont( "Tahoma", 12, 400, FONTFLAG_OUTLINE ),
-    [2] = draw.CreateFont( "Tahoma", 12, 800, FONTFLAG_OUTLINE ),
-    [3] = draw.CreateFont( "Verdana", 14, 300, FONTFLAG_OUTLINE ),
-    [4] = draw.CreateFont( "Consolas", 12, 400, FONTFLAG_OUTLINE ),
-    [5] = draw.CreateFont( "Arial", 14, 400, FONTFLAG_OUTLINE ),
-    [6] = draw.CreateFont( "TF2 Build", 12, 400, FONTFLAG_OUTLINE )
+    [1] = draw.CreateFont( "Tahoma", 12, 400, FONTFLAG_OUTLINE),
+    [2] = draw.CreateFont( "Tahoma", 12, 800, FONTFLAG_OUTLINE),
+    [3] = draw.CreateFont( "Verdana", 14, 400, FONTFLAG_OUTLINE),
+    [4] = draw.CreateFont( "Consolas", 12, 400, FONTFLAG_OUTLINE),
+    [5] = draw.CreateFont( "Arial", 14, 400, FONTFLAG_OUTLINE),
+    [6] = draw.CreateFont( "TF2 Build", 12, 400, FONTFLAG_OUTLINE)
 }
 
 local s_width, s_height = draw.GetScreenSize()
@@ -214,36 +215,39 @@ local building_names = {
 }
 
 local conditions_names = {
-    [1] = "ZOOMED",
-    [3] = "DISGUISED",
-    [4] = "INVIS",
-    [5] = "UBER",
-    [7] = "TAUNT",
+    [1] = "*ZOOMED*",
+    [3] = "*DISGUISED*",
+    [4] = "*CLOAKED*",
+    [5] = "*UBER*",
+    [7] = "*TAUNT*",
 
-    [11] = "CRITS", -- ape
-    [33] = "CRITS",
-    [34] = "CRITS",
-    [35] = "CRITS",
-    [37] = "CRITS",
-    [38] = "CRITS",
-    [39] = "CRITS",
-    [40] = "CRITS",
-    [44] = "CRITS",
-    [56] = "CRITS",
-    [78] = "MINI CRITS",
-    [105] = "CRITS",
+    [11] = "*CRITS*", -- ape
+    [33] = "*CRITS*",
+    [34] = "*CRITS*",
+    [35] = "*CRITS*",
+    [37] = "*CRITS*",
+    [38] = "*CRITS*",
+    [39] = "*CRITS*",
+    [40] = "*CRITS*",
+    [44] = "*CRITS*",
+    [56] = "*CRITS*",
+    [78] = "*MINI CRITS*",
+    [105] = "*CRITS*",
 
-    [22] = "BRUNING",
-    [24] = "JARATE",
-    [25] = "BLEEDING",
-    [27] = "MILK",
-    [32] = "SPEED BOOST",
-    [36] = "HYPE",
-    [58] = "BULLET RES",
-    [59] = "BLAST RES",
-    [60] = "FIRE RES",
-    [81] = "BLAST JUMPING",
-    [123] = "GAS",
+    [22] = "*BRUNING*",
+    [24] = "*JARATE*",
+    [25] = "*BLEEDING*",
+    [27] = "*MILK*",
+    [32] = "*SPEED BOOST*",
+    [36] = "*HYPE*",
+    [58] = "*BULLET RES (UBER)*",
+    [59] = "*BLAST RES (UBER)*",
+    [60] = "*FIRE RES (UBER)*",
+    [61] = "*BULLET RES*",
+    [62] = "*BLAST RES*",
+    [63] = "*FIRE RES*",
+    [81] = "*BLAST JUMPING*",
+    [123] = "*GAS*",
 }
 local function building_conds(building)
     local buildingConditions = {}
@@ -363,8 +367,61 @@ local function draw_circle(pos, segments, radius)
     end
 end
 
+local function CreateCFG(folder_name, table)
+    local success, fullPath = filesystem.CreateDirectory(folder_name)
+    local filepath = tostring(fullPath .. "/config.txt")
+    local file = io.open(filepath, "w")
+    
+    if file then
+        local function serializeTable(tbl, level)
+            level = level or 0
+            local result = string.rep("    ", level) .. "{\n"
+            for key, value in pairs(tbl) do
+                result = result .. string.rep("    ", level + 1)
+                if type(key) == "string" then
+                    result = result .. '["' .. key .. '"] = '
+                else
+                    result = result .. "[" .. key .. "] = "
+                end
+                if type(value) == "table" then
+                    result = result .. serializeTable(value, level + 1) .. ",\n"
+                elseif type(value) == "string" then
+                    result = result .. '"' .. value .. '",\n'
+                else
+                    result = result .. tostring(value) .. ",\n"
+                end
+            end
+            result = result .. string.rep("    ", level) .. "}"
+            return result
+        end
+        
+        local serializedConfig = serializeTable(table)
+        file:write(serializedConfig)
+        file:close()
+        printc( 255, 183, 0, 255, "["..os.date("%H:%M:%S").."] Saved to ".. tostring(fullPath))
+    end
+end
 
-callbacks.Register( "Draw", function()
+local function LoadCFG(folder_name)
+    local success, fullPath = filesystem.CreateDirectory(folder_name)
+    local filepath = tostring(fullPath .. "/config.txt")
+    local file = io.open(filepath, "r")
+    
+    if file then
+        local content = file:read("*a")
+        file:close()
+        local chunk, err = load("return " .. content)
+        if chunk then
+            printc( 0, 255, 140, 255, "["..os.date("%H:%M:%S").."] Loaded from ".. tostring(fullPath))
+            return chunk()
+        else
+            print("Error loading configuration:", err)
+        end
+    end
+end
+
+
+callbacks.Register( "Draw", "Muqas esp", function()
 
     if input.IsButtonPressed( KEY_END ) or input.IsButtonPressed( KEY_INSERT ) or input.IsButtonPressed( KEY_F11 ) then 
         toggleMenu()
@@ -379,6 +436,7 @@ callbacks.Register( "Draw", function()
             Menu.tabs.world = false
             Menu.tabs.players = false
             Menu.tabs.buildings = false
+            Menu.tabs.config = false
         end
 
         if ImMenu.Button("World") then
@@ -386,6 +444,7 @@ callbacks.Register( "Draw", function()
             Menu.tabs.world = true
             Menu.tabs.players = false
             Menu.tabs.buildings = false
+            Menu.tabs.config = false
         end
 
         if ImMenu.Button("Players") then
@@ -393,6 +452,7 @@ callbacks.Register( "Draw", function()
             Menu.tabs.world = false
             Menu.tabs.players = true
             Menu.tabs.buildings = false
+            Menu.tabs.config = false
         end
 
         if ImMenu.Button("Buildings") then
@@ -400,6 +460,15 @@ callbacks.Register( "Draw", function()
             Menu.tabs.world = false
             Menu.tabs.players = false
             Menu.tabs.buildings = true
+            Menu.tabs.config = false
+        end
+
+        if ImMenu.Button("Config") then
+            Menu.tabs.global = false
+            Menu.tabs.world = false
+            Menu.tabs.players = false
+            Menu.tabs.buildings = false
+            Menu.tabs.config = true
         end
 
         ImMenu.EndFrame()
@@ -430,6 +499,12 @@ callbacks.Register( "Draw", function()
             ImMenu.BeginFrame(1)
             ImMenu.Text("Tracer To")
             Menu.global_tab.tracer_pos.selected_to = ImMenu.Option(Menu.global_tab.tracer_pos.selected_to, Menu.global_tab.tracer_pos.to)
+            ImMenu.EndFrame()
+
+            ImMenu.BeginFrame(1)
+            if ImMenu.Button("Unload Script") then
+                callbacks.Unregister( "Draw", "Muqas esp" )
+            end
             ImMenu.EndFrame()
         end
 
@@ -582,6 +657,25 @@ callbacks.Register( "Draw", function()
             end
         end
 
+        if Menu.tabs.config == true then 
+            ImMenu.BeginFrame(1)
+            if ImMenu.Button("Create CFG") then
+                printc( 255, 183, 0, 255, "["..os.date("%H:%M:%S").."] Creating or saving the config." )
+                CreateCFG( [[Muqas lua esp config]] , Menu )
+            end
+
+            if ImMenu.Button("Load CFG") then
+                Menu = LoadCFG( [[Muqas lua esp config]] )
+                printc( 0, 255, 140, 255, "["..os.date("%H:%M:%S").."] Loaded config." )
+            end
+
+            ImMenu.EndFrame()
+
+            ImMenu.BeginFrame(1)
+            ImMenu.Text("Dont load a config if you havent saved one.")
+            ImMenu.EndFrame()
+        end
+
         ImMenu.End()
     end
 
@@ -590,7 +684,6 @@ callbacks.Register( "Draw", function()
     draw.SetFont( fonts[Menu.global_tab.selected_font] )
     local localPlayer = entities.GetLocalPlayer()
     if Menu.global_tab.active and not engine.IsGameUIVisible() then
-
         if Menu.world_tab.active then 
             local function draw_world_esp(entity_name, top_padding, bottom_padding)
                 local entities = entities.FindByClass( entity_name ) 
@@ -784,10 +877,14 @@ callbacks.Register( "Draw", function()
                             draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
                         end
 
+                        local health = nil -- saving these cuz i use these variables in the health text color
+                        local maxHealth = nil
+                        local percentageHealth = nil
+
                         if Menu.players_tab.draw.health_bar then 
-                            local health = p:GetHealth()
-                            local maxHealth = p:GetMaxHealth()
-                            local percentageHealth = math.floor(health / maxHealth * 100)
+                            health = p:GetHealth()
+                            maxHealth = p:GetMaxHealth()
+                            percentageHealth = math.floor(health / maxHealth * 100)
                             local healthBarSize = nil
                             local maxHealthBarSize = nil
 
@@ -839,13 +936,15 @@ callbacks.Register( "Draw", function()
                             draw.Color(espColor[1],espColor[2],espColor[3],alpha)
                         end
 
+                        local medigun = nil -- same story as for the health
+                        local uber = nil
+
                         if Menu.players_tab.draw.uber_bar then 
                             if p:GetPropInt("m_iClass") == 5 then
-                                local medigun = p:GetEntityForLoadoutSlot( 1 )
-                                local uber = medigun:GetPropFloat("LocalTFWeaponMedigunData","m_flChargeLevel")
-                                local maxUber = 1.0
-                                local percentageUber = math.floor(uber / maxUber * 100)
-                                local uberBarSize = math.floor(w * (uber / maxUber))
+                                medigun = p:GetEntityForLoadoutSlot( 1 )
+                                uber = medigun:GetPropFloat("LocalTFWeaponMedigunData","m_flChargeLevel")
+                                local percentageUber = math.floor((uber / 1) * 100)
+                                local uberBarSize = math.floor(w * (uber / 1))
     
                                 local uber_bar_pos = nil
                                 local uber_bar_backround_pos = nil
@@ -907,8 +1006,10 @@ callbacks.Register( "Draw", function()
                                 end
             
                                 if p:GetPropInt("m_iClass") == 5 then
-                                    local medigun = p:GetEntityForLoadoutSlot(1)
-                                    local uber = medigun:GetPropFloat("LocalTFWeaponMedigunData", "m_flChargeLevel")
+                                    if uber == nil then
+                                        medigun = p:GetEntityForLoadoutSlot(1)
+                                        uber = medigun:GetPropFloat("LocalTFWeaponMedigunData", "m_flChargeLevel")
+                                    end
                                     local UberPercentage = math.floor(uber * 100)
                 
                                     if condition == tostring(UberPercentage.. "%") then
@@ -916,9 +1017,11 @@ callbacks.Register( "Draw", function()
                                     end
                                 end
 
-                                local health = p:GetHealth()
-                                local maxHealth = p:GetMaxHealth()
-                                local percentageHealth = math.floor(health / maxHealth * 100)
+                                if health == nil then
+                                    health = p:GetHealth()
+                                    maxHealth = p:GetMaxHealth()
+                                    percentageHealth = math.floor(health / maxHealth * 100)
+                                end
                                 
                                 if condition == health then
                                     if percentageHealth > 100 then
