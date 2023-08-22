@@ -39,14 +39,14 @@ callbacks.Register("Draw", "yes", function()
                 pos2 = math.floor(pos2)
 
                 local name_width, name_height = draw.GetTextSize(p:GetName())
-                local health_width, health_height = draw.GetTextSize(tostring(p:GetHealth()))
+                local health_width, health_height = draw.GetTextSize(p:GetHealth())
                 local distance = vector.Distance( lPlayer:GetAbsOrigin(), p:GetAbsOrigin() )
                 local alpha = math.floor(math.max(0, 255 - (distance * 0.05)))
 
                 draw.Color(255, 255, 255, alpha)
                 draw.Text(pos1 - math.floor(name_width / 2), pos2, p:GetName())
                 draw.Color(0, 255, 0, alpha)
-                draw.Text(pos1 - math.floor(health_width / 2), pos2 + name_height, tostring(p:GetHealth()))
+                draw.Text(pos1 - math.floor(health_width / 2), pos2 + name_height, p:GetHealth())
             end
         end
     end
