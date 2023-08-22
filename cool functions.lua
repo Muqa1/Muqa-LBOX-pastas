@@ -216,35 +216,129 @@ local function draw_sphere(center, segments, radius) -- fixes weird lines but fu
 end
 ------------------------
 local function L_line(start_pos, end_pos, secondary_line_size)
-
-    local function NormalizeVector(vector)
-        local length = math.sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z)
-        if length == 0 then
-            return Vector3(0, 0, 0)
-        else
-            return Vector3(vector.x / length, vector.y / length, vector.z / length)
-        end
+    if start_pos == nil or end_pos == nil then
+        return
     end
-
+    local direction = end_pos - start_pos
+    local direction_length = direction:Length()
+    if direction_length == 0 then
+        return
+    end
+    local normalized_direction = direction / direction_length
+    local perpendicular = Vector3(normalized_direction.y, -normalized_direction.x, 0) * secondary_line_size
     local w2s_start_pos = client.WorldToScreen(start_pos)
     local w2s_end_pos = client.WorldToScreen(end_pos)
-    if start_pos ~= nil and end_pos ~= nil then
-        
-        draw.Line(w2s_start_pos[1], w2s_start_pos[2], w2s_end_pos[1], w2s_end_pos[2])
+    if w2s_start_pos == nil or w2s_end_pos == nil then
+        return
+    end
+    draw.Line(w2s_start_pos[1], w2s_start_pos[2], w2s_end_pos[1], w2s_end_pos[2])
+    local secondary_line_end_pos = start_pos + perpendicular
+    local w2s_secondary_line_end_pos = client.WorldToScreen(secondary_line_end_pos)
+    if w2s_secondary_line_end_pos ~= nil then
+        local w2s_secondary_line_start_pos = w2s_start_pos
+        draw.Line(w2s_secondary_line_start_pos[1], w2s_secondary_line_start_pos[2], w2s_secondary_line_end_pos[1], w2s_secondary_line_end_pos[2])
+    end
+end
+-------------------
+local function IsVisible(entity, localPlayer)
+    local function VisPos(target, from, to)
+        local trace = engine.TraceLine(from, to, MASK_SHOT | CONTENTS_GRATE)
+        return (trace.entity == target) or (trace.fraction > 0.99)
+    end
+    return VisPos(localPlayer, entity:GetAbsOrigin(), localPlayer:GetAbsOrigin())
+end
 
-        local direction = (start_pos - end_pos)
-
-        if direction:Length() > 0 then
-
-            local perpendicular = Vector3(direction.y, -direction.x, 0)
-            perpendicular = NormalizeVector(perpendicular) 
-
-            local secondary_line_start_pos = client.WorldToScreen(start_pos)
-            local secondary_line_end_pos = client.WorldToScreen(start_pos + perpendicular * secondary_line_size)
-
-            if secondary_line_start_pos ~= nil and secondary_line_end_pos ~= nil then
-                draw.Line(secondary_line_start_pos[1], secondary_line_start_pos[2], secondary_line_end_pos[1], secondary_line_end_pos[2])
-            end
+local function IsVisible(player, localPlayer)
+    local me = localPlayer
+    local source = me:GetAbsOrigin() + me:GetPropVector( "localdata", "m_vecViewOffset[0]" );
+    local destination = player:GetAbsOrigin() + Vector3(0,0,75)
+    local trace = engine.TraceLine( source, destination, CONTENTS_SOLID );
+    if (trace.entity ~= nil) then
+        if trace.entity == player then 
+            return true 
         end
     end
+    return false
+end
+--------------------- 
+local function CreateCFG(folder_name, table)
+    local success, fullPath = filesystem.CreateDirectory(folder_name)
+    local filepath = tostring(fullPath .. "/config.txt")
+    local file = io.open(filepath, "w")
+    
+    if file then
+        local function serializeTable(tbl, level)
+            level = level or 0
+            local result = string.rep("    ", level) .. "{\n"
+            for key, value in pairs(tbl) do
+                result = result .. string.rep("    ", level + 1)
+                if type(key) == "string" then
+                    result = result .. '["' .. key .. '"] = '
+                else
+                    result = result .. "[" .. key .. "] = "
+                end
+                if type(value) == "table" then
+                    result = result .. serializeTable(value, level + 1) .. ",\n"
+                elseif type(value) == "string" then
+                    result = result .. '"' .. value .. '",\n'
+                else
+                    result = result .. tostring(value) .. ",\n"
+                end
+            end
+            result = result .. string.rep("    ", level) .. "}"
+            return result
+        end
+        
+        local serializedConfig = serializeTable(table)
+        file:write(serializedConfig)
+        file:close()
+    end
+end
+
+local function LoadCFG(folder_name)
+    local success, fullPath = filesystem.CreateDirectory(folder_name)
+    local filepath = tostring(fullPath .. "/config.txt")
+    local file = io.open(filepath, "r")
+    
+    if file then
+        local content = file:read("*a")
+        file:close()
+        local chunk, err = load("return " .. content)
+        if chunk then
+            return chunk()
+        else
+            print("Error loading configuration:", err)
+        end
+    end
+end
+
+-- CreateCFG("SEOwnedDE_lua_config", Menu)
+-- Menu_config = LoadCFG("SEOwnedDE_lua_config")
+
+------------------------
+local function PositionAngles(source, dest)
+    local function isNaN(x) return x ~= x end
+    local M_RADPI = 180 / math.pi
+    local delta = source - dest
+    local pitch = math.atan(delta.z / delta:Length2D()) * M_RADPI
+    local yaw = math.atan(delta.y / delta.x) * M_RADPI
+    if delta.x >= 0 then
+        yaw = yaw + 180
+    end
+    if isNaN(pitch) then pitch = 0 end
+    if isNaN(yaw) then yaw = 0 end
+    return EulerAngles(pitch, yaw, 0)
+end
+
+-- engine.SetViewAngles(PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), p:GetAbsOrigin())) -- looks at their feet
+
+----------------------------------
+local function IsOnScreen(entity)
+    local w2s = client.WorldToScreen(entity:GetAbsOrigin())
+    if w2s ~= nil then
+        if w2s[1] ~= nil and w2s[2] ~= nil then 
+            return true 
+        end
+    end
+    return false
 end
