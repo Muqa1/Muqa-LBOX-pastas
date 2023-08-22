@@ -240,19 +240,11 @@ local function L_line(start_pos, end_pos, secondary_line_size)
     end
 end
 -------------------
-local function IsVisible(entity, localPlayer)
-    local function VisPos(target, from, to)
-        local trace = engine.TraceLine(from, to, MASK_SHOT | CONTENTS_GRATE)
-        return (trace.entity == target) or (trace.fraction > 0.99)
-    end
-    return VisPos(localPlayer, entity:GetAbsOrigin(), localPlayer:GetAbsOrigin())
-end
-
 local function IsVisible(player, localPlayer)
     local me = localPlayer
     local source = me:GetAbsOrigin() + me:GetPropVector( "localdata", "m_vecViewOffset[0]" );
     local destination = player:GetAbsOrigin() + Vector3(0,0,75)
-    local trace = engine.TraceLine( source, destination, CONTENTS_SOLID );
+    local trace = engine.TraceLine( source, destination, CONTENTS_SOLID | CONTENTS_GRATE | CONTENTS_MONSTER );
     if (trace.entity ~= nil) then
         if trace.entity == player then 
             return true 
