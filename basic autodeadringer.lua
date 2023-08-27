@@ -15,7 +15,7 @@ local function IsProjectileClose(lPlayer, projectile, min_distance)
     end
     return false
 end
-callbacks.Register( "CreateMove", function(cmd) 
+local function aDeadringer(cmd)
     local lPlayer = entities.GetLocalPlayer()
     if (lPlayer == nil) or (lPlayer:GetPropInt("m_iClass") ~= 8) or (lPlayer:GetPropInt("m_Shared", "m_bFeignDeathReady") == 1) then return end
     for i = 1, #projectile_class_names do -- projectiles
@@ -29,4 +29,6 @@ callbacks.Register( "CreateMove", function(cmd)
     if (lPlayer:InCond(22) or lPlayer:InCond(25)) and ((lPlayer:GetHealth() / lPlayer:GetMaxHealth()) < health) then -- bleeding and burning
         cmd:SetButtons( cmd.buttons | IN_ATTACK2)
     end
-end)
+end
+callbacks.Unregister( "CreateMove", "aDeadringer" )
+callbacks.Register( "CreateMove", "aDeadringer", aDeadringer )
