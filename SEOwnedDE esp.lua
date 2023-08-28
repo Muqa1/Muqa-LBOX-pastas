@@ -22,6 +22,7 @@ local Menu = { -- this is the config that will be loaded every time u load the s
 
     global_tab = {
         active = true,
+        memory = true,
         max_distance = 2500,
         fonts = {"Tahoma", "Tahoma Bold", "Verdana", "Consolas", "Arial", "TF2 Build"},
         selected_font = 1,
@@ -55,7 +56,6 @@ local Menu = { -- this is the config that will be loaded every time u load the s
 
     players_tab = {
         active = true,
-        manual_headheight = true, -- i added this cuz sometimes the prop bugs out and causes the player esp to be very small https://imgur.com/a/bDFyBFd
         alpha = 10,
         ignore = {
             friends = false,
@@ -76,6 +76,8 @@ local Menu = { -- this is the config that will be loaded every time u load the s
             tracer = false,
             conds = true,
             bars_thickness = 2,
+            box_cornered = false,
+            box_outlined = true,
             health_bar_pos = {"Left", "Bottom"},
             selected_health_bar_pos = 1,
             uber_bar_pos = {"Left", "Bottom"},
@@ -106,7 +108,8 @@ local Menu = { -- this is the config that will be loaded every time u load the s
     }
 }
 
-
+local wait = 0
+local memoryUsage = 0
 
 local menuLoaded, ImMenu = pcall(require, "ImMenu")
 assert(menuLoaded, "ImMenu not found, please install it!")
@@ -197,15 +200,15 @@ local projectile_names = {
 }
 
 local classes = {
-    [1] = {"Scout", Vector3(0,0,68)},
-    [2] = {"Sniper", Vector3(0,0,75)}, -- tall boi
-    [3] = {"Soldier", Vector3(0,0,68)},
-    [4] = {"Demoman", Vector3(0,0,68)},
-    [5] = {"Medic", Vector3(0,0,75)}, -- tall boi
-    [6] = {"Heavy", Vector3(0,0,68)},
-    [7] = {"Pyro", Vector3(0,0,68)},
-    [8] = {"Spy", Vector3(0,0,75)}, -- tall boi
-    [9] = {"Engineer", Vector3(0,0,68)},
+    [1] = "Scout",
+    [2] = "Sniper", 
+    [3] = "Soldier",
+    [4] = "Demoman",
+    [5] = "Medic", 
+    [6] = "Heavy",
+    [7] = "Pyro",
+    [8] = "Spy", 
+    [9] = "Engineer",
 }
 
 local building_names = {
@@ -270,7 +273,7 @@ end
 local function getConditions(player)
     local playerConditions = {}
     if Menu.players_tab.draw.class then 
-        table.insert(playerConditions, classes[player:GetPropInt("m_iClass")][1])
+        table.insert(playerConditions, classes[player:GetPropInt("m_iClass")])
     end
     if Menu.players_tab.draw.health then
         local health = player:GetHealth()
@@ -365,6 +368,31 @@ local function draw_circle(pos, segments, radius)
             draw.Line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
         end
     end
+end
+
+local function Get2DBoundingBox(entity)
+    local hitbox = entity:HitboxSurroundingBox()
+    local corners = {
+        Vector3(hitbox[1].x, hitbox[1].y, hitbox[1].z),
+        Vector3(hitbox[1].x, hitbox[2].y, hitbox[1].z),
+        Vector3(hitbox[2].x, hitbox[2].y, hitbox[1].z),
+        Vector3(hitbox[2].x, hitbox[1].y, hitbox[1].z),
+        Vector3(hitbox[2].x, hitbox[2].y, hitbox[2].z),
+        Vector3(hitbox[1].x, hitbox[2].y, hitbox[2].z),
+        Vector3(hitbox[1].x, hitbox[1].y, hitbox[2].z),
+        Vector3(hitbox[2].x, hitbox[1].y, hitbox[2].z)
+    }
+    local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
+    for _, corner in pairs(corners) do
+        local onScreen = client.WorldToScreen(corner)
+        if onScreen then
+            minX, minY = math.min(minX, onScreen[1]), math.min(minY, onScreen[2])
+            maxX, maxY = math.max(maxX, onScreen[1]), math.max(maxY, onScreen[2])
+        else
+            return false
+        end
+    end
+    return minX, minY, maxX, maxY
 end
 
 local function CreateCFG(folder_name, table)
@@ -480,6 +508,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
 
             ImMenu.BeginFrame(1)
             Menu.global_tab.active = ImMenu.Checkbox("Active", Menu.global_tab.active)
+            Menu.global_tab.memory = ImMenu.Checkbox("Show Memory Usage", Menu.global_tab.memory)
             ImMenu.EndFrame()
 
             ImMenu.BeginFrame(1)
@@ -543,7 +572,6 @@ callbacks.Register( "Draw", "Muqas esp", function()
         if Menu.tabs.players == true then 
             ImMenu.BeginFrame(1)
             Menu.players_tab.active =  ImMenu.Checkbox("Active", Menu.players_tab.active)
-            Menu.players_tab.manual_headheight =  ImMenu.Checkbox("Use Manual Head Height", Menu.players_tab.manual_headheight)
             ImMenu.EndFrame()
 
             ImMenu.BeginFrame(1)
@@ -587,6 +615,13 @@ callbacks.Register( "Draw", "Muqas esp", function()
             ImMenu.BeginFrame(1)
             Menu.players_tab.draw.conds =  ImMenu.Checkbox("Conditions", Menu.players_tab.draw.conds)
             ImMenu.EndFrame()
+
+            if Menu.players_tab.draw.box then 
+                ImMenu.BeginFrame(1)
+                Menu.players_tab.draw.box_cornered =  ImMenu.Checkbox("Cornered Box", Menu.players_tab.draw.box_cornered)
+                Menu.players_tab.draw.box_outlined = ImMenu.Checkbox("Box Outline", Menu.players_tab.draw.box_outlined)
+                ImMenu.EndFrame()
+            end
 
             if Menu.players_tab.draw.health_bar or Menu.players_tab.draw.uber_bar then 
 
@@ -659,14 +694,12 @@ callbacks.Register( "Draw", "Muqas esp", function()
 
         if Menu.tabs.config == true then 
             ImMenu.BeginFrame(1)
-            if ImMenu.Button("Create CFG") then
-                printc( 255, 183, 0, 255, "["..os.date("%H:%M:%S").."] Creating or saving the config." )
+            if ImMenu.Button("Create/Save CFG") then
                 CreateCFG( [[Muqas lua esp config]] , Menu )
             end
 
             if ImMenu.Button("Load CFG") then
                 Menu = LoadCFG( [[Muqas lua esp config]] )
-                printc( 0, 255, 140, 255, "["..os.date("%H:%M:%S").."] Loaded config." )
             end
 
             ImMenu.EndFrame()
@@ -684,8 +717,21 @@ callbacks.Register( "Draw", "Muqas esp", function()
     draw.SetFont( fonts[Menu.global_tab.selected_font] )
     local localPlayer = entities.GetLocalPlayer()
     if Menu.global_tab.active and not engine.IsGameUIVisible() then
+        if Menu.global_tab.memory then 
+            local function getMemoryUsage()
+                local mem = collectgarbage("count") / 1024
+                return mem
+            end
+            if globals.RealTime() > (wait + 1) then
+                memoryUsage = getMemoryUsage()
+                wait = globals.RealTime()
+            end
+            local roundedMemoryUsage = string.format("%.2f", memoryUsage)
+            draw.Color(255, 255, 255, 255)
+            draw.Text(10, math.floor(s_height * 0.2), "Memory usage: " .. roundedMemoryUsage .. " MB")
+        end
         if Menu.world_tab.active then 
-            local function draw_world_esp(entity_name, top_padding, bottom_padding)
+            local function draw_world_esp(entity_name)
                 local entities = entities.FindByClass( entity_name ) 
                 for i,entity in pairs(entities) do 
                     if not entity:IsDormant() and distance_check(entity, localPlayer) then
@@ -722,57 +768,42 @@ callbacks.Register( "Draw", "Muqas esp", function()
                             end
                         end
 
-                        local top_padding = Vector3(0,0,top_padding)
-                        local bottom_padding = Vector3(0,0,bottom_padding)
+                        local x,y,x2,y2 = Get2DBoundingBox(entity)
+                        if not x or not y or not x2 or not y2 then goto projectile_esp_continue end
+                        local h, w = y2 - y, x2 - x
 
-                        local bottom_pos = entity:GetAbsOrigin() - bottom_padding
-                        local top_pos = bottom_pos + top_padding
-                        local w2s_bottom_pos = client.WorldToScreen( bottom_pos )
-                        local w2s_top_pos = client.WorldToScreen( top_pos )
+                        local alpha = math.floor(255 * (Menu.world_tab.alpha / 10))
 
-                        if w2s_bottom_pos ~= nil and w2s_top_pos ~= nil then 
+                        draw.Color(colorWorld[1], colorWorld[2], colorWorld[3], alpha)
 
-                            local height = math.abs(w2s_top_pos[2] - w2s_bottom_pos[2])
-                            local width = height * 1.4 -- 1.2
-
-                            local x = math.floor(w2s_top_pos[1] - width * 0.5)
-                            local y = math.floor(w2s_top_pos[2])
-                            local w = math.floor(width)
-                            local h = math.floor(height)
-
-                            local alpha = math.floor(255 * (Menu.world_tab.alpha / 10))
-
-                            draw.Color(colorWorld[1], colorWorld[2], colorWorld[3], alpha)
-
-                            if Menu.world_tab.draw.tracer then 
-                                draw.Color(colorWorld[1],colorWorld[2],colorWorld[3],alpha)
-                                local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
-                                draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
+                        if Menu.world_tab.draw.tracer then 
+                            draw.Color(colorWorld[1],colorWorld[2],colorWorld[3],alpha)
+                            local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
+                            draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
+                        end
+                        if Menu.world_tab.draw.name then 
+                            local width , height = draw.GetTextSize( name )
+                            draw.Text( math.floor(x + w / 2 - (width / 2)), y - height, name )
+                        end
+                        if Menu.world_tab.draw.box then 
+                            if entity_class == "CTFAmmoPack" then -- looks retarded on dropped ammo
+                                goto projectile_esp_continue
                             end
-                            if Menu.world_tab.draw.name then 
-                                local width , height = draw.GetTextSize( name )
-                                draw.Text( math.floor(x + w / 2 - (width / 2)), y - height, name )
-                            end
-                            if Menu.world_tab.draw.box then 
-                                if entity_class == "CTFAmmoPack" then -- looks retarded on dropped ammo
-                                    goto projectile_esp_continue
-                                end
-                                draw.OutlinedRect(x, y, x + w, y + h)
-                                draw.Color(0,0,0, alpha)
-                                draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
-                            end
+                            draw.OutlinedRect(x, y, x + w, y + h)
+                            draw.Color(0,0,0, alpha)
+                            draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
                         end
                         ::projectile_esp_continue::
                     end
                 end
             end
             if not Menu.world_tab.ignore.supplies then
-                draw_world_esp("CBaseAnimating", 30, 0)
-                draw_world_esp("CTFAmmoPack", 0, 0)
+                draw_world_esp("CBaseAnimating")
+                draw_world_esp("CTFAmmoPack")
             end
             if not Menu.world_tab.ignore.enemy_projectiles or not Menu.world_tab.ignore.teammate_projectiles then 
                 for i, projectile in ipairs(projectiles) do 
-                    draw_world_esp(projectile, 10, 5)
+                    draw_world_esp(projectile)
                 end
             end
         end
@@ -826,244 +857,233 @@ callbacks.Register( "Draw", "Muqas esp", function()
                         espColor = Menu.colors.friend
                     end
 
-                    local padding = Vector3(0, 0, 7)
 
-                    local headPos = nil
+                    local x,y,x2,y2 = Get2DBoundingBox(p)
+                    if not x or not y or not x2 or not y2 then goto esp_continue end
+                    local h, w = y2 - y, x2 - x
 
-                    if Menu.players_tab.manual_headheight then
-                        local height = nil 
-                        if p:GetPropInt( "m_fFlags" ) & 2 == 0 then 
-                            height = classes[p:GetPropInt("m_iClass")][2].z
+                    local alpha = math.floor(255 * (Menu.players_tab.alpha / 10))
+
+                    local text_pos_table = {}
+
+                    draw.Color(espColor[1], espColor[2], espColor[3],alpha)
+
+                    if Menu.players_tab.draw.name then 
+                        if Menu.players_tab.draw.selected_text_pos ~= 1 then 
+                            table.insert(text_pos_table, {p:GetName(), {espColor[1], espColor[2], espColor[3],alpha} })
                         else
-                            height = 55
+                            local name_width = draw.GetTextSize(p:GetName())
+                            draw.Text(math.floor(x + w / 2 - (name_width / 2)), y - 15, p:GetName())
                         end
-                        headPos = p:GetAbsOrigin() + Vector3(0,0,height) + padding
-                    else
-                        headPos = (p:GetAbsOrigin() + p:GetPropVector("localdata", "m_vecViewOffset[0]")) + padding 
                     end
 
-                    local feetPos = p:GetAbsOrigin() - padding
-
-                    local headScreenPos = client.WorldToScreen(headPos)
-                    local feetScreenPos = client.WorldToScreen(feetPos)
-                    if headScreenPos ~=nil and feetScreenPos ~= nil then
-
-                        local height = math.abs(headScreenPos[2] - feetScreenPos[2])
-                        local width = height * 0.6
-
-                        local x = math.floor(headScreenPos[1] - width * 0.5)
-                        local y = math.floor(headScreenPos[2])
-                        local w = math.floor(width)
-                        local h = math.floor(height)
-
-                        local alpha = math.floor(255 * (Menu.players_tab.alpha / 10))
-
-                        local text_pos_table = {}
-
-                        draw.Color(espColor[1], espColor[2], espColor[3],alpha)
-
-                        if Menu.players_tab.draw.name then 
-                            local name_width = draw.GetTextSize(p:GetName())
-                            if Menu.players_tab.draw.selected_text_pos == 1 then 
-                                draw.Text(math.floor(x + w / 2 - (name_width / 2)), y - 15, p:GetName())
-                            else
-                                table.insert(text_pos_table, {p:GetName(), {espColor[1], espColor[2], espColor[3],alpha} })
-                            end
-                        end
-
-                        if Menu.players_tab.draw.box then 
+                    if Menu.players_tab.draw.box then 
+                        if not Menu.players_tab.draw.box_cornered then
                             draw.OutlinedRect(x, y, x + w, y + h)
-                            draw.Color(0,0,0,alpha)
-                            draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
+                            if Menu.players_tab.draw.box_outlined then
+                                draw.Color(0,0,0,alpha)
+                                draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
+                                draw.OutlinedRect(x + 1, y + 1, x + w - 1, y + h - 1)
+                            end
+                        else
+                            draw.Line( x, y, math.min( x + 5, x2 ), y )
+                            draw.Line( x, y, x, math.min( y + 5, y2 ) )
+                            --
+                            draw.Line( x2, y, math.max( x2 - 5, x ), y )
+                            draw.Line( x2, y, x2, math.min( y + 5, y2 ) )
+                            --
+                            draw.Line( x, y2, math.min( x + 5, x2 ), y2 )
+                            draw.Line( x, y2, x, math.max( y2 - 5, y ) )
+                            --
+                            draw.Line( x2, y2, math.max( x2 - 5, x ), y2 )
+                            draw.Line( x2, y2, x2, math.max( y2 - 5, y ) )
                         end
+                    end
 
-                        local health = nil -- saving these cuz i use these variables in the health text color
-                        local maxHealth = nil
-                        local percentageHealth = nil
+                    local health = nil -- saving these cuz i use these variables in the health text color
+                    local maxHealth = nil
+                    local percentageHealth = nil
 
-                        if Menu.players_tab.draw.health_bar then 
-                            health = p:GetHealth()
-                            maxHealth = p:GetMaxHealth()
-                            percentageHealth = math.floor(health / maxHealth * 100)
-                            local healthBarSize = nil
-                            local maxHealthBarSize = nil
+                    if Menu.players_tab.draw.health_bar then 
+                        health = p:GetHealth()
+                        maxHealth = p:GetMaxHealth()
+                        percentageHealth = math.floor(health / maxHealth * 100)
+                        local healthBarSize = nil
+                        local maxHealthBarSize = nil
 
-                            local health_bar_pos = nil
-                            local health_bar_backround_pos = nil
+                        local health_bar_pos = nil
+                        local health_bar_backround_pos = nil
 
-                            if Menu.players_tab.draw.selected_health_bar_pos == 1 then -- left
-                                healthBarSize = math.floor(h * (health / maxHealth))
-                                maxHealthBarSize = math.floor(h)
-                                if percentageHealth > 100 then 
-                                    healthBarSize = maxHealthBarSize
-                                end
-                                health_bar_pos = {x - (4 + Menu.players_tab.draw.bars_thickness), (y + h) - healthBarSize, x - 4, (y + h)}
-                                if not Menu.players_tab.draw.bars_static_bacrkound then
-                                    health_bar_backround_pos = {health_bar_pos[1] - 1, health_bar_pos[2] - 1, health_bar_pos[3] + 1, health_bar_pos[4] + 1}
-                                else
-                                    health_bar_backround_pos = {x - (5 + Menu.players_tab.draw.bars_thickness), y - 1, x - 3, (y + h) + 1}
-                                end
-                            end
-
-                            if Menu.players_tab.draw.selected_health_bar_pos == 2 then -- down
-                                healthBarSize = math.floor(w * (health / maxHealth))
-                                maxHealthBarSize = math.floor(w)
-                                if percentageHealth > 100 then 
-                                    healthBarSize = maxHealthBarSize
-                                end
-                                health_bar_pos = {x + 1, y + h + 3, x - 1 + healthBarSize, y + h + 3 + Menu.players_tab.draw.bars_thickness}
-
-                                if not Menu.players_tab.draw.bars_static_bacrkound then
-                                    health_bar_backround_pos = {health_bar_pos[1] - 1, health_bar_pos[2] - 1, health_bar_pos[3] + 1, health_bar_pos[4] + 1}
-                                else
-                                    health_bar_backround_pos = {x, y + h + 2, x + w, y + h + 4 + Menu.players_tab.draw.bars_thickness}
-                                end
-                            end
-
-                            draw.Color(0,0,0,alpha)
-                            draw.FilledRect(health_bar_backround_pos[1], health_bar_backround_pos[2], health_bar_backround_pos[3], health_bar_backround_pos[4]) -- backround
-
-                            if percentageHealth < 101 then
-                                draw.Color(255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha)
-                            elseif p:InCond(5) then 
+                        if Menu.players_tab.draw.selected_health_bar_pos == 1 then -- left
+                            healthBarSize = math.floor(h * (health / maxHealth))
+                            maxHealthBarSize = math.floor(h)
+                            if percentageHealth > 100 then 
                                 healthBarSize = maxHealthBarSize
-                                draw.Color(Menu.colors.uber[1], Menu.colors.uber[2], Menu.colors.uber[3], alpha)
-                            elseif percentageHealth > 100 then 
-                                draw.Color(Menu.colors.over_heal[1],Menu.colors.over_heal[2],Menu.colors.over_heal[3], alpha)
                             end
-
-                            draw.FilledRect(health_bar_pos[1], health_bar_pos[2], health_bar_pos[3], health_bar_pos[4]) -- healthbar
-                            draw.Color(espColor[1],espColor[2],espColor[3],alpha)
-                        end
-
-                        local medigun = nil -- same story as for the health
-                        local uber = nil
-
-                        if Menu.players_tab.draw.uber_bar then 
-                            if p:GetPropInt("m_iClass") == 5 then
-                                medigun = p:GetEntityForLoadoutSlot( 1 )
-                                uber = medigun:GetPropFloat("LocalTFWeaponMedigunData","m_flChargeLevel")
-                                local percentageUber = math.floor((uber / 1) * 100)
-                                local uberBarSize = math.floor(w * (uber / 1))
-    
-                                local uber_bar_pos = nil
-                                local uber_bar_backround_pos = nil
-
-                                if Menu.players_tab.draw.selected_uber_bar_pos == 2 then -- down
-                                    uber_bar_pos = {x + 1, y + h + 3, x - 1 + uberBarSize, y + h + 3 + Menu.players_tab.draw.bars_thickness}
-                                    if not Menu.players_tab.draw.bars_static_bacrkound then
-                                        uber_bar_backround_pos = {uber_bar_pos[1] - 1, uber_bar_pos[2] - 1, uber_bar_pos[3] + 1, uber_bar_pos[4] + 1}
-                                    else
-                                        uber_bar_backround_pos = {x, y + h + 2, x + w, y + h + 4 + Menu.players_tab.draw.bars_thickness}
-                                    end
-                                end
-
-                                if Menu.players_tab.draw.selected_uber_bar_pos == 1 then -- left
-                                    uber_bar_pos = {x - (4 + Menu.players_tab.draw.bars_thickness), (y + h) - uberBarSize, x - 4, (y + h)}
-                                    if not Menu.players_tab.draw.bars_static_bacrkound then
-                                        uber_bar_backround_pos = {uber_bar_pos[1] - 1, uber_bar_pos[2] - 1, uber_bar_pos[3] + 1, uber_bar_pos[4] + 1}
-                                    else
-                                        uber_bar_backround_pos = {x - (5 + Menu.players_tab.draw.bars_thickness), y - 1, x - 3, (y + h) + 1}
-                                    end
-                                end
-
-                                if Menu.players_tab.draw.health_bar and Menu.players_tab.draw.selected_health_bar_pos == 2 and Menu.players_tab.draw.selected_uber_bar_pos == 2 then 
-                                    uber_bar_pos = {uber_bar_pos[1], uber_bar_pos[2] + 4 + Menu.players_tab.draw.bars_thickness, uber_bar_pos[3], uber_bar_pos[4] + 4 + Menu.players_tab.draw.bars_thickness}
-                                    uber_bar_backround_pos = {uber_bar_backround_pos[1], uber_bar_backround_pos[2] + 4 + Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[3], uber_bar_backround_pos[4] + 4 + Menu.players_tab.draw.bars_thickness}
-                                end
-
-                                if Menu.players_tab.draw.health_bar and Menu.players_tab.draw.selected_health_bar_pos == 1 and Menu.players_tab.draw.selected_uber_bar_pos == 1 then 
-                                    uber_bar_pos = {uber_bar_pos[1] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_pos[2], uber_bar_pos[3] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_pos[4]}
-                                    uber_bar_backround_pos = {uber_bar_backround_pos[1] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[2], uber_bar_backround_pos[3] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[4]}
-                                end
-
-                                if percentageUber ~= 0 then
-                                    draw.Color(0,0,0,alpha)
-                                    draw.FilledRect(uber_bar_backround_pos[1], uber_bar_backround_pos[2], uber_bar_backround_pos[3], uber_bar_backround_pos[4]) -- backround 
-                                    draw.Color(Menu.colors.uber[1], Menu.colors.uber[2], Menu.colors.uber[3],alpha)
-                                    draw.FilledRect(uber_bar_pos[1], uber_bar_pos[2], uber_bar_pos[3], uber_bar_pos[4]) -- uber bar
-                                end
+                            health_bar_pos = {x - (4 + Menu.players_tab.draw.bars_thickness), (y + h) - healthBarSize, x - 4, (y + h)}
+                            if not Menu.players_tab.draw.bars_static_bacrkound then
+                                health_bar_backround_pos = {health_bar_pos[1] - 1, health_bar_pos[2] - 1, health_bar_pos[3] + 1, health_bar_pos[4] + 1}
+                            else
+                                health_bar_backround_pos = {x - (5 + Menu.players_tab.draw.bars_thickness), y - 1, x - 3, (y + h) + 1}
                             end
                         end
 
-                        if Menu.players_tab.draw.tracer then 
-                            draw.Color(espColor[1],espColor[2],espColor[3],alpha)
-                            local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
-                            draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
+                        if Menu.players_tab.draw.selected_health_bar_pos == 2 then -- down
+                            healthBarSize = math.floor(w * (health / maxHealth))
+                            maxHealthBarSize = math.floor(w)
+                            if percentageHealth > 100 then 
+                                healthBarSize = maxHealthBarSize
+                            end
+                            health_bar_pos = {x + 1, y + h + 3, x - 1 + healthBarSize, y + h + 3 + Menu.players_tab.draw.bars_thickness}
+
+                            if not Menu.players_tab.draw.bars_static_bacrkound then
+                                health_bar_backround_pos = {health_bar_pos[1] - 1, health_bar_pos[2] - 1, health_bar_pos[3] + 1, health_bar_pos[4] + 1}
+                            else
+                                health_bar_backround_pos = {x, y + h + 2, x + w, y + h + 4 + Menu.players_tab.draw.bars_thickness}
+                            end
                         end
 
-                        if Menu.players_tab.draw.conds or Menu.players_tab.draw.health or Menu.players_tab.draw.health or Menu.players_tab.draw.class then
-                            local y_offset = 0
-                            local playerConditions = getConditions(p)
+                        draw.Color(0,0,0,alpha)
+                        draw.FilledRect(health_bar_backround_pos[1], health_bar_backround_pos[2], health_bar_backround_pos[3], health_bar_backround_pos[4]) -- backround
+
+                        if percentageHealth < 101 then
+                            draw.Color(255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha)
+                        elseif p:InCond(5) then 
+                            healthBarSize = maxHealthBarSize
+                            draw.Color(Menu.colors.uber[1], Menu.colors.uber[2], Menu.colors.uber[3], alpha)
+                        elseif percentageHealth > 100 then 
+                            draw.Color(Menu.colors.over_heal[1],Menu.colors.over_heal[2],Menu.colors.over_heal[3], alpha)
+                        end
+
+                        draw.FilledRect(health_bar_pos[1], health_bar_pos[2], health_bar_pos[3], health_bar_pos[4]) -- healthbar
+                        draw.Color(espColor[1],espColor[2],espColor[3],alpha)
+                    end
+
+                    local medigun = nil -- same story as for the health
+                    local uber = nil
+
+                    if Menu.players_tab.draw.uber_bar then 
+                        if p:GetPropInt("m_iClass") == 5 then
+                            medigun = p:GetEntityForLoadoutSlot( 1 )
+                            uber = medigun:GetPropFloat("LocalTFWeaponMedigunData","m_flChargeLevel")
+                            local percentageUber = math.floor((uber / 1) * 100)
+                            local uberBarSize = math.floor(w * (uber / 1))
     
-                            if #playerConditions > 0 then
-                            local x_w_5 = x + w + 5 -- the conds start position X
-                            for index, condition in ipairs(playerConditions) do
-                                local drawColor = { 0, 255, 179, alpha }
+                            local uber_bar_pos = nil
+                            local uber_bar_backround_pos = nil
 
-                                if condition == classes[p:GetPropInt("m_iClass")][1] then
-                                    drawColor = { 255, 255, 255, alpha }
-                                end
-            
-                                if p:GetPropInt("m_iClass") == 5 then
-                                    if uber == nil then
-                                        medigun = p:GetEntityForLoadoutSlot(1)
-                                        uber = medigun:GetPropFloat("LocalTFWeaponMedigunData", "m_flChargeLevel")
-                                    end
-                                    local UberPercentage = math.floor(uber * 100)
-                
-                                    if condition == tostring(UberPercentage.. "%") then
-                                        drawColor = { 255, 0, 255, alpha }  
-                                    end
-                                end
-
-                                if health == nil then
-                                    health = p:GetHealth()
-                                    maxHealth = p:GetMaxHealth()
-                                    percentageHealth = math.floor(health / maxHealth * 100)
-                                end
-                                
-                                if condition == health then
-                                    if percentageHealth > 100 then
-                                        drawColor = { 0, 255, 0, alpha } 
-                                    else
-                                        drawColor = { 255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha } 
-                                    end
-                                end
-
-                                if Menu.players_tab.draw.selected_text_pos == 1 then
-                                    local width, length = draw.GetTextSize(condition)
-                                    draw.Color(table.unpack(drawColor)) 
-                                    draw.Text(x_w_5, y + y_offset, condition)
-                                    y_offset = y_offset + length
+                            if Menu.players_tab.draw.selected_uber_bar_pos == 2 then -- down
+                                uber_bar_pos = {x + 1, y + h + 3, x - 1 + uberBarSize, y + h + 3 + Menu.players_tab.draw.bars_thickness}
+                                if not Menu.players_tab.draw.bars_static_bacrkound then
+                                    uber_bar_backround_pos = {uber_bar_pos[1] - 1, uber_bar_pos[2] - 1, uber_bar_pos[3] + 1, uber_bar_pos[4] + 1}
                                 else
-                                    table.insert(text_pos_table, {condition, drawColor})
+                                    uber_bar_backround_pos = {x, y + h + 2, x + w, y + h + 4 + Menu.players_tab.draw.bars_thickness}
                                 end
                             end
-                        end
 
-                        if Menu.players_tab.draw.selected_text_pos ~= 1 then 
-                            local y_offset = 0
-                            for i, text in ipairs(text_pos_table) do 
-                                draw.Color(text[2][1],text[2][2],text[2][3],alpha)
-                                local width, length = draw.GetTextSize(text[1])
-                                local text_positions = {
-                                    [2] = {x, y - 15 - y_offset},
-                                    [3] = {x, y + h + 15 + y_offset},
-                                    [4] = {x + w + 5, y + y_offset},
-                                    [5] = {x - 5 - width, y + y_offset},
-                                    [6] = {math.floor(x + (w / 2) - (width / 2)), math.floor(y + (h / 2) + y_offset)},
-                                    [7] = {math.floor(x + (w / 2) - (width / 2)), y + h + 10 + y_offset},
-                                    [8] = {math.floor(x + (w / 2) - (width / 2)), y - 15 - y_offset}
-                                }
-                                local text_position = text_positions[Menu.players_tab.draw.selected_text_pos]
-                                draw.Text(text_position[1], text_position[2], text[1])
-                                y_offset = y_offset + length
+                            if Menu.players_tab.draw.selected_uber_bar_pos == 1 then -- left
+                                uber_bar_pos = {x - (4 + Menu.players_tab.draw.bars_thickness), (y + h) - uberBarSize, x - 4, (y + h)}
+                                if not Menu.players_tab.draw.bars_static_bacrkound then
+                                    uber_bar_backround_pos = {uber_bar_pos[1] - 1, uber_bar_pos[2] - 1, uber_bar_pos[3] + 1, uber_bar_pos[4] + 1}
+                                else
+                                    uber_bar_backround_pos = {x - (5 + Menu.players_tab.draw.bars_thickness), y - 1, x - 3, (y + h) + 1}
+                                end
+                            end
+
+                            if Menu.players_tab.draw.health_bar and Menu.players_tab.draw.selected_health_bar_pos == 2 and Menu.players_tab.draw.selected_uber_bar_pos == 2 then 
+                                uber_bar_pos = {uber_bar_pos[1], uber_bar_pos[2] + 4 + Menu.players_tab.draw.bars_thickness, uber_bar_pos[3], uber_bar_pos[4] + 4 + Menu.players_tab.draw.bars_thickness}
+                                uber_bar_backround_pos = {uber_bar_backround_pos[1], uber_bar_backround_pos[2] + 4 + Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[3], uber_bar_backround_pos[4] + 4 + Menu.players_tab.draw.bars_thickness}
+                            end
+
+                            if Menu.players_tab.draw.health_bar and Menu.players_tab.draw.selected_health_bar_pos == 1 and Menu.players_tab.draw.selected_uber_bar_pos == 1 then 
+                                uber_bar_pos = {uber_bar_pos[1] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_pos[2], uber_bar_pos[3] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_pos[4]}
+                                uber_bar_backround_pos = {uber_bar_backround_pos[1] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[2], uber_bar_backround_pos[3] - 4 - Menu.players_tab.draw.bars_thickness, uber_bar_backround_pos[4]}
+                            end
+
+                            if percentageUber ~= 0 then
+                                draw.Color(0,0,0,alpha)
+                                draw.FilledRect(uber_bar_backround_pos[1], uber_bar_backround_pos[2], uber_bar_backround_pos[3], uber_bar_backround_pos[4]) -- backround 
+                                draw.Color(Menu.colors.uber[1], Menu.colors.uber[2], Menu.colors.uber[3],alpha)
+                                draw.FilledRect(uber_bar_pos[1], uber_bar_pos[2], uber_bar_pos[3], uber_bar_pos[4]) -- uber bar
                             end
                         end
+                    end
 
+                    if Menu.players_tab.draw.tracer then 
+                        draw.Color(espColor[1],espColor[2],espColor[3],alpha)
+                        local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
+                        draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
+                    end
 
-                    end  
+                    if Menu.players_tab.draw.conds or Menu.players_tab.draw.health or Menu.players_tab.draw.uber or Menu.players_tab.draw.class then
+                        local y_offset = 0
+                        local playerConditions = getConditions(p)
+    
+                        if #playerConditions > 0 then
+                        local x_w_5 = x + w + 5 -- the conds start position X
+                        for index, condition in ipairs(playerConditions) do
+                            local drawColor = { 0, 255, 179, alpha }
+
+                            if condition == classes[p:GetPropInt("m_iClass")][1] then
+                                drawColor = { 255, 255, 255, alpha }
+                            end
+            
+                            if p:GetPropInt("m_iClass") == 5 then
+                                if uber == nil then
+                                    medigun = p:GetEntityForLoadoutSlot(1)
+                                    uber = medigun:GetPropFloat("LocalTFWeaponMedigunData", "m_flChargeLevel")
+                                end
+                                local UberPercentage = math.floor(uber * 100)
+                
+                                if condition == tostring(UberPercentage.. "%") then
+                                    drawColor = { 255, 0, 255, alpha }  
+                                end
+                            end
+
+                            if health == nil then
+                                health = p:GetHealth()
+                                maxHealth = p:GetMaxHealth()
+                                percentageHealth = math.floor(health / maxHealth * 100)
+                            end
+                                
+                            if condition == health then
+                                if percentageHealth > 100 then
+                                    drawColor = { 0, 255, 0, alpha } 
+                                else
+                                    drawColor = { 255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha } 
+                                end
+                            end
+
+                            if Menu.players_tab.draw.selected_text_pos == 1 then
+                                local width, length = draw.GetTextSize(condition)
+                                draw.Color(table.unpack(drawColor)) 
+                                draw.Text(x_w_5, y + y_offset, condition)
+                                y_offset = y_offset + length
+                            else
+                                table.insert(text_pos_table, {condition, drawColor})
+                            end
+                        end
+                    end
+
+                    if Menu.players_tab.draw.selected_text_pos ~= 1 then 
+                        local y_offset = 0
+                        for i, text in ipairs(text_pos_table) do 
+                            draw.Color(text[2][1],text[2][2],text[2][3],alpha)
+                            local width, length = draw.GetTextSize(text[1])
+                            local text_positions = {
+                                [2] = {x, y - 15 - y_offset},
+                                [3] = {x, y + h + 15 + y_offset},
+                                [4] = {x + w + 5, y + y_offset},
+                                [5] = {x - 5 - width, y + y_offset},
+                                [6] = {math.floor(x + (w / 2) - (width / 2)), math.floor(y + (h / 2) + y_offset)},
+                                [7] = {math.floor(x + (w / 2) - (width / 2)), y + h + 10 + y_offset},
+                                [8] = {math.floor(x + (w / 2) - (width / 2)), y - 15 - y_offset}
+                            }
+                            local text_position = text_positions[Menu.players_tab.draw.selected_text_pos]
+                            draw.Text(text_position[1], text_position[2], text[1])
+                            y_offset = y_offset + length
+                        end
+                    end
                 end
                 ::esp_continue::
                 end
@@ -1071,7 +1091,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
         end
 
         if Menu.buildings_tab.active then 
-            local function draw_building_esp(entity_name, top_padding, bottom_padding, wideness) 
+            local function draw_building_esp(entity_name) 
                 local buildings = entities.FindByClass( entity_name )
                 for i,b in pairs(buildings) do 
                     if not b:IsDormant() and distance_check(b, localPlayer) then
@@ -1087,133 +1107,120 @@ callbacks.Register( "Draw", "Muqas esp", function()
                         end
 
                         local name
-                        local top_padding = Vector3(0,0,top_padding)
-                        local bottom_padding = Vector3(0,0,bottom_padding)
+                        
+                        local x,y,x2,y2 = Get2DBoundingBox(b)
+                        if not x or not y or not x2 or not y2 then goto buildings_continue end
+                        local h, w = y2 - y, x2 - x
 
-                        local bottom_pos = b:GetAbsOrigin() - bottom_padding
-                        local top_pos = bottom_pos + top_padding
-                        local w2s_bottom_pos = client.WorldToScreen( bottom_pos )
-                        local w2s_top_pos = client.WorldToScreen( top_pos )
+                        local alpha = math.floor(255 * (Menu.buildings_tab.alpha / 10))
 
-                        if w2s_bottom_pos ~= nil and w2s_top_pos ~= nil then 
-                            local height = math.abs(w2s_top_pos[2] - w2s_bottom_pos[2])
-                            local width = height * wideness
-
-                            local x = math.floor(w2s_top_pos[1] - width * 0.5)
-                            local y = math.floor(w2s_top_pos[2])
-                            local w = math.floor(width)
-                            local h = math.floor(height)
-
-                            local alpha = math.floor(255 * (Menu.buildings_tab.alpha / 10))
-
-                            local colorBuildings = nil
-                            if enemyTeam ~= localTeam then
-                                colorBuildings = Menu.colors.enemy
-                            end
-                            if enemyTeam == localTeam then
-                                colorBuildings = Menu.colors.teammate
-                            end
+                        local colorBuildings = nil
+                        if enemyTeam ~= localTeam then
+                            colorBuildings = Menu.colors.enemy
+                        end
+                        if enemyTeam == localTeam then
+                            colorBuildings = Menu.colors.teammate
+                        end
                             
+                        draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
+
+                        if Menu.buildings_tab.draw.box then 
+                            draw.OutlinedRect(x, y, x + w, y + h)
+                            draw.Color(0,0,0, alpha)
+                            draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
+                        end
+                        if Menu.buildings_tab.draw.name then  
+                            name = building_names[b:GetClass()]
                             draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
+                            local width , height = draw.GetTextSize( name )
+                            draw.Text( math.floor(x + w / 2 - (width / 2)), y - height, name )
+                        end
+                        if Menu.buildings_tab.draw.tracer then 
+                            draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
+                            local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
+                            draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
+                        end
+                        if Menu.buildings_tab.draw.health_bar then 
+                            local health = b:GetHealth()
+                            local maxHealth = b:GetMaxHealth()
+                            local percentageHealth = math.floor(health / maxHealth * 100)
+                            local healthBarSize = math.floor(h * (health / maxHealth))
+                            local maxHealthBarSize = math.floor(h)
 
-                            if Menu.buildings_tab.draw.box then 
-                                draw.OutlinedRect(x, y, x + w, y + h)
-                                draw.Color(0,0,0, alpha)
-                                draw.OutlinedRect(x - 1, y - 1, x + w + 1, y + h + 1)
+                            if percentageHealth > 100 then 
+                                healthBarSize = maxHealthBarSize
                             end
-                            if Menu.buildings_tab.draw.name then  
-                                name = building_names[b:GetClass()]
-                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
-                                local width , height = draw.GetTextSize( name )
-                                draw.Text( math.floor(x + w / 2 - (width / 2)), y - height, name )
-                            end
-                            if Menu.buildings_tab.draw.tracer then 
-                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
-                                local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
-                                draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
-                            end
-                            if Menu.buildings_tab.draw.health_bar then 
-                                local health = b:GetHealth()
-                                local maxHealth = b:GetMaxHealth()
-                                local percentageHealth = math.floor(health / maxHealth * 100)
-                                local healthBarSize = math.floor(h * (health / maxHealth))
-                                local maxHealthBarSize = math.floor(h)
 
-                                if percentageHealth > 100 then 
-                                    healthBarSize = maxHealthBarSize
-                                end
+                            draw.Color(0,0,0,alpha)
+                            draw.FilledRect(x - 7, (y + h) - healthBarSize - 1, x - 3, (y + h) + 1 ) -- backround
 
-                                draw.Color(0,0,0,alpha)
-                                draw.FilledRect(x - 7, (y + h) - healthBarSize - 1, x - 3, (y + h) + 1 ) -- backround
-
-                                if percentageHealth < 101 then
-                                    draw.Color(255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha)
-                                elseif p:InCond(5) then 
-                                    healthBarSize = maxHealthBarSize
-                                    draw.Color(Menu.colors.uber[1], Menu.colors.uber[2], Menu.colors.uber[3], alpha)
-                                elseif percentageHealth > 100 then 
-                                    draw.Color(Menu.colors.over_heal[1],Menu.colors.over_heal[2],Menu.colors.over_heal[3], alpha)
-                                end
-                                draw.FilledRect(x - 6, (y + h) - healthBarSize, x - 4, (y + h) ) -- healthbar
-                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
+                            if percentageHealth < 101 then
+                                draw.Color(255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha)
+                            elseif p:InCond(5) then 
+                                healthBarSize = maxHealthBarSize
+                                draw.Color(Menu.colors.uber[1], Menu.colors.uber[2], Menu.colors.uber[3], alpha)
+                            elseif percentageHealth > 100 then 
+                                draw.Color(Menu.colors.over_heal[1],Menu.colors.over_heal[2],Menu.colors.over_heal[3], alpha)
                             end
-                            if Menu.buildings_tab.draw.level_bar then 
-                                local level = b:GetPropInt("m_iUpgradeLevel")
-                                local maxLevel = 3
-                                local percentageLevel = math.floor(level / maxLevel * 100)
-                                local levelBarSize = math.floor(w * (level / maxLevel))
-                                draw.Color(0,0,0,alpha)
-                                draw.FilledRect(x, y + h + 2, x - 1 + levelBarSize + 1, y + h + 6)
-                                draw.Color(200, 200, 200,alpha)
-                                draw.FilledRect(x + 1, y + h + 3, x - 1 + levelBarSize, y + h + 5)
-                            end
-                            if Menu.buildings_tab.draw.conds or Menu.buildings_tab.draw.health or Menu.buildings_tab.draw.level then 
-                                local y_offset = 0
-                                local buildingConditions = building_conds(b)
+                            draw.FilledRect(x - 6, (y + h) - healthBarSize, x - 4, (y + h) ) -- healthbar
+                            draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
+                        end
+                        if Menu.buildings_tab.draw.level_bar then 
+                            local level = b:GetPropInt("m_iUpgradeLevel")
+                            local maxLevel = 3
+                            local percentageLevel = math.floor(level / maxLevel * 100)
+                            local levelBarSize = math.floor(w * (level / maxLevel))
+                            draw.Color(0,0,0,alpha)
+                            draw.FilledRect(x, y + h + 2, x - 1 + levelBarSize + 1, y + h + 6)
+                            draw.Color(200, 200, 200,alpha)
+                            draw.FilledRect(x + 1, y + h + 3, x - 1 + levelBarSize, y + h + 5)
+                        end
+                        if Menu.buildings_tab.draw.conds or Menu.buildings_tab.draw.health or Menu.buildings_tab.draw.level then 
+                            local y_offset = 0
+                            local buildingConditions = building_conds(b)
     
-                                if #buildingConditions > 0 then
-                                    local x_w_5 = x + w + 5
-                                    for index, condition in ipairs(buildingConditions) do
-                                        local drawColor = { 0, 255, 179, alpha }
+                            if #buildingConditions > 0 then
+                                local x_w_5 = x + w + 5
+                                for index, condition in ipairs(buildingConditions) do
+                                    local drawColor = { 0, 255, 179, alpha }
 
-                                        local level = b:GetPropInt("m_iUpgradeLevel")
+                                    local level = b:GetPropInt("m_iUpgradeLevel")
                 
-                                        if condition == level then
-                                                drawColor = { 255, 255, 255, alpha }  
-                                            end
+                                    if condition == level then
+                                        drawColor = { 255, 255, 255, alpha }  
+                                    end
                                 
 
-                                        local health = b:GetHealth()
-                                        local maxHealth = b:GetMaxHealth()
-                                        local percentageHealth = math.floor(health / maxHealth * 100)
+                                    local health = b:GetHealth()
+                                    local maxHealth = b:GetMaxHealth()
+                                    local percentageHealth = math.floor(health / maxHealth * 100)
                                 
-                                        if condition == health then
-                                            if percentageHealth > 100 then
-                                                drawColor = { 0, 255, 0, alpha } 
-                                            else
-                                                drawColor = { 255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha } 
-                                            end
+                                    if condition == health then
+                                        if percentageHealth > 100 then
+                                            drawColor = { 0, 255, 0, alpha } 
+                                        else
+                                            drawColor = { 255 - math.floor(health / maxHealth * 255), math.floor(health / maxHealth * 255), 0, alpha } 
                                         end
-            
-                                        local width, length = draw.GetTextSize(condition)
-                                        draw.Color(table.unpack(drawColor)) 
-                                        draw.Text(x_w_5, y + y_offset, condition)
-                                        y_offset = y_offset + length
                                     end
+            
+                                    local width, length = draw.GetTextSize(condition)
+                                    draw.Color(table.unpack(drawColor)) 
+                                    draw.Text(x_w_5, y + y_offset, condition)
+                                    y_offset = y_offset + length
                                 end
                             end
-                            if Menu.buildings_tab.draw.sentry_range and b:GetClass() == "CObjectSentrygun" then 
-                                draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
-                                draw_circle(b:GetAbsOrigin(),Menu.buildings_tab.draw.sentry_range_segments,1100)
-                            end
+                        end
+                        if Menu.buildings_tab.draw.sentry_range and b:GetClass() == "CObjectSentrygun" then 
+                            draw.Color(colorBuildings[1], colorBuildings[2], colorBuildings[3],alpha)
+                            draw_circle(b:GetAbsOrigin(),Menu.buildings_tab.draw.sentry_range_segments,1100)
                         end
                         ::buildings_continue::
                     end
                 end
             end
-            draw_building_esp("CObjectSentrygun", 65, 0, 0.9)
-            draw_building_esp("CObjectDispenser", 65, 0, 0.7)
-            draw_building_esp("CObjectTeleporter", 15, 0, 4)
+            draw_building_esp("CObjectSentrygun")
+            draw_building_esp("CObjectDispenser")
+            draw_building_esp("CObjectTeleporter")
         end
 
     end
