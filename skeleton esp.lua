@@ -1,3 +1,4 @@
+-- preview: https://imgur.com/a/TS6HNpG
 local boneIDs = {
     {1, 6},   -- head to pelvis
     {6, 5},   
