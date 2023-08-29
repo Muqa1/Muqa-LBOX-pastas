@@ -4,7 +4,8 @@ local key = KEY_F
 local projectilesTable = {}
 local latestPos = nil
 local originalPos = nil
-callbacks.Register("CreateMove", function()
+local TurnMovementOff = false
+callbacks.Register("CreateMove", function(cmd)
     local localPlayer = entities.GetLocalPlayer()
     if localPlayer == nil then
         return 
@@ -46,20 +47,33 @@ callbacks.Register("CreateMove", function()
         end
     end
     if latestProj then
-        latestPos = latestProj:GetAbsOrigin() - Vector3(0,0,40)
+        latestPos = latestProj:GetAbsOrigin() - Vector3(0,0,50)
+    end
+    if TurnMovementOff then 
+        cmd:SetButtons(0)
+        cmd:SetForwardMove(0)
+        cmd:SetSideMove(0)
+        cmd:SetUpMove(0)
     end
 end)
 callbacks.Register("PostPropUpdate", function()
     local localPlayer = entities.GetLocalPlayer()
     if input.IsButtonDown(key) then
-        if not originalPos then
+        if not originalPos and #projectilesTable ~= 0 then
             originalPos = localPlayer:GetAbsOrigin()
+            client.Command( "r_drawviewmodel 0", 1 )
+            TurnMovementOff = true
         end
         if latestPos and #projectilesTable ~= 0 then
             localPlayer:SetPropVector(latestPos, "tfnonlocaldata", "m_vecOrigin")
         end
+        if gui.GetValue( "Thirdperson") then 
+            gui.SetValue( "Thirdperson", 0 )
+        end
     elseif originalPos then
         localPlayer:SetPropVector(originalPos, "tfnonlocaldata", "m_vecOrigin")
         originalPos = nil
+        client.Command( "r_drawviewmodel 1", 1 )
+        TurnMovementOff = false
     end
 end)
