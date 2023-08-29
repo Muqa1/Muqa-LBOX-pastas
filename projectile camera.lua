@@ -1,7 +1,7 @@
 local key = KEY_F
 
 --------------------------
-local projectilesTable = {} -- Table to store projectile information
+local projectilesTable = {}
 local latestPos = nil
 local originalPos = nil
 function findClosestNumber(target, numbers)
