@@ -26,22 +26,19 @@ callbacks.Register("CreateMove", function()
     for _, p in pairs(projectiles) do
         if not p:IsDormant() then
             local pos = p:GetAbsOrigin()
-            local w2s_pos = client.WorldToScreen(pos)
-            if w2s_pos ~= nil then
-                local launcher = p:GetPropEntity("m_hLauncher")
-                if launcher:GetPropEntity("m_hOwnerEntity") == localPlayer then
-                    hasLocalProjectiles = true
-                    local alreadyAdded = false
-                    for _, v in pairs(projectilesTable) do
-                        if v[1] == p then
-                            alreadyAdded = true
-                            break
-                        end
+            local launcher = p:GetPropEntity("m_hLauncher")
+            if launcher:GetPropEntity("m_hOwnerEntity") == localPlayer then
+                hasLocalProjectiles = true
+                local alreadyAdded = false
+                for _, v in pairs(projectilesTable) do
+                    if v[1] == p then
+                        alreadyAdded = true
+                        break
                     end
-                    if not alreadyAdded then
-                        local tick = globals.TickCount()
-                        table.insert(projectilesTable, {p, tick})
-                    end
+                end
+                if not alreadyAdded then
+                    local tick = globals.TickCount()
+                    table.insert(projectilesTable, {p, tick})
                 end
             end
         end
