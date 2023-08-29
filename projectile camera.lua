@@ -4,18 +4,6 @@ local key = KEY_F
 local projectilesTable = {}
 local latestPos = nil
 local originalPos = nil
-function findClosestNumber(target, numbers)
-    local closestNumber = numbers[1]
-    local closestDifference = math.abs(target - closestNumber)
-    for _, number in ipairs(numbers) do
-        local difference = math.abs(target - number)
-        if difference < closestDifference then
-            closestNumber = number
-            closestDifference = difference
-        end
-    end
-    return closestNumber
-end
 callbacks.Register("CreateMove", function()
     local localPlayer = entities.GetLocalPlayer()
     if localPlayer == nil then
