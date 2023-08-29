@@ -8,7 +8,7 @@ local hitbox_surrounding_box = true
 
 -------------------------------
 local hitPos = {}
-local function damageLogger(event)
+local function PlayerHurtEvent(event)
     if (event:GetName() == 'player_hurt' ) then
         local localPlayer = entities.GetLocalPlayer();
         local victim = entities.GetByUserID(event:GetInt("userid"))
@@ -26,7 +26,7 @@ local function damageLogger(event)
         table.remove(hitPos)
     end
 end
-callbacks.Register("FireGameEvent", "exampledamageLogger", damageLogger)
+callbacks.Register("FireGameEvent", "PlayerHurtEvent", PlayerHurtEvent)
 local function Draw3DBox(size, pos)
     local halfSize = size / 2
     local corners = {
@@ -59,7 +59,7 @@ local function Draw3DBox(size, pos)
         end
     end
 end
-local function dmg_logger_draw()
+local function PlayerHurtEventDraw()
     local currentTime = globals.RealTime()
     for i,v in pairs(hitPos) do 
         if currentTime - v[4] > disappear_time then
@@ -118,4 +118,4 @@ local function dmg_logger_draw()
         end
     end
 end
-callbacks.Register( "Draw", "exampledamageLoggerDraw", dmg_logger_draw )
+callbacks.Register( "Draw", "PlayerHurtEventDraw", PlayerHurtEventDraw )
