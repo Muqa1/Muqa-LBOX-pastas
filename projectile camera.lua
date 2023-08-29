@@ -50,7 +50,7 @@ callbacks.Register("CreateMove", function(cmd)
         latestPos = latestProj:GetAbsOrigin() - Vector3(0,0,50)
     end
     if TurnMovementOff then 
-        cmd:SetButtons(0)
+        cmd:SetButtons(cmd.buttons & (~IN_ATTACK))
         cmd:SetForwardMove(0)
         cmd:SetSideMove(0)
         cmd:SetUpMove(0)
