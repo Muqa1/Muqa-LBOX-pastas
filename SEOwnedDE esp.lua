@@ -1,4 +1,4 @@
-local Menu = { -- this is the config that will be loaded every time u load the script
+local Menu = { -- the config table
 
     colors = { 
         -- Local = {},
@@ -12,11 +12,12 @@ local Menu = { -- this is the config that will be loaded every time u load the s
         supplies = {255,255,255},
     },
 
-    tabs = { -- dont touch this, this is just for managing the tabs in the menu
+    tabs = {
         global = true, 
         world = false, 
         players = false, 
         buildings = false,
+        colors = false,
         config = false,
     },
 
@@ -73,6 +74,7 @@ local Menu = { -- this is the config that will be loaded every time u load the s
             uber = true,
             uber_bar = true,
             box = true,
+            skeleton = false,
             tracer = false,
             conds = true,
             bars_thickness = 2,
@@ -105,6 +107,11 @@ local Menu = { -- this is the config that will be loaded every time u load the s
             sentry_range = false,
             sentry_range_segments = 20,
         }
+    },
+    
+    colors_tab = {
+        colors = {"Friend", "Enemy", "Teammate", "Uber", "Over Heal", "Priority", "Cheater", "Supplies"},
+        selected_color = 1,
     }
 }
 
@@ -161,6 +168,20 @@ local function calculateTracerPositions(x, y, w, height)
     return from_pos, to_pos
 end
 
+local function ColorCalculator(index) -- best name
+    local colors = {
+        [1] = Menu.colors.friend,
+        [2] = Menu.colors.enemy,
+        [3] = Menu.colors.teammate,
+        [4] = Menu.colors.uber,
+        [5] = Menu.colors.over_heal,
+        [6] = Menu.colors.priority,
+        [7] = Menu.colors.cheater,
+        [8] = Menu.colors.supplies,
+    }
+    return colors[index]
+end
+
 local projectiles = {
     "CTFStunBall",
     "CTFBall_Ornament",
@@ -197,6 +218,30 @@ local projectile_names = {
     ["CTFProjectile_HealingBolt"] = "Healing Arrow",
     ["CTFProjectile_Jar"] = "Jarate",
     ["CTFProjectile_JarGas"] = "Gas Passer"
+}
+
+local boneIDs = {
+    {1, 6},   -- head to pelvis
+    {6, 5},   
+    {5, 4}, 
+    {4, 3}, 
+    {3, 2},  -- head to pelvis
+
+    {2, 13},  -- pelvis to left foot
+    {13, 14}, 
+    {14, 15}, -- pelvis to left foot
+
+    {2, 16}, -- pelvis to right foot
+    {16, 17}, 
+    {17, 18}, -- pelvis to right foot
+
+    {6, 10}, -- shoulder to right arm
+    {10, 11},
+    {11, 12}, -- shoulder to right arm
+
+    {6, 7}, -- shoulder to left arm
+    {7, 8},
+    {8, 9} -- shoulder to left arm
 }
 
 local classes = {
@@ -334,22 +379,6 @@ local function IsFriend(idx, inParty)
     return false
 end
 
-local function serializeTable(tbl)
-    local result = "{\n"
-    for key, value in pairs(tbl) do
-        result = result .. "    " .. key .. " = "
-        if type(value) == "table" then
-            result = result .. serializeTable(value) .. ",\n"
-        elseif type(value) == "string" then
-            result = result .. '"' .. value .. '",\n'
-        else
-            result = result .. tostring(value) .. ",\n"
-        end
-    end
-    result = result .. "}"
-    return result
-end
-
 local function draw_circle(pos, segments, radius)
     local angleIncrement = 360 / segments
     local vertices = {}
@@ -464,6 +493,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
             Menu.tabs.world = false
             Menu.tabs.players = false
             Menu.tabs.buildings = false
+            Menu.tabs.colors = false
             Menu.tabs.config = false
         end
 
@@ -472,6 +502,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
             Menu.tabs.world = true
             Menu.tabs.players = false
             Menu.tabs.buildings = false
+            Menu.tabs.colors = false
             Menu.tabs.config = false
         end
 
@@ -480,6 +511,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
             Menu.tabs.world = false
             Menu.tabs.players = true
             Menu.tabs.buildings = false
+            Menu.tabs.colors = false
             Menu.tabs.config = false
         end
 
@@ -488,6 +520,16 @@ callbacks.Register( "Draw", "Muqas esp", function()
             Menu.tabs.world = false
             Menu.tabs.players = false
             Menu.tabs.buildings = true
+            Menu.tabs.colors = false
+            Menu.tabs.config = false
+        end
+
+        if ImMenu.Button("Colors") then
+            Menu.tabs.global = false
+            Menu.tabs.world = false
+            Menu.tabs.players = false
+            Menu.tabs.buildings = false 
+            Menu.tabs.colors = true
             Menu.tabs.config = false
         end
 
@@ -496,12 +538,13 @@ callbacks.Register( "Draw", "Muqas esp", function()
             Menu.tabs.world = false
             Menu.tabs.players = false
             Menu.tabs.buildings = false
+            Menu.tabs.colors = false
             Menu.tabs.config = true
         end
 
         ImMenu.EndFrame()
 
-        if Menu.tabs.global == true then 
+        if Menu.tabs.global then 
             ImMenu.BeginFrame(1)
             ImMenu.Text("The menu keys are INSERT, END and F11")
             ImMenu.EndFrame()
@@ -537,7 +580,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
             ImMenu.EndFrame()
         end
 
-        if Menu.tabs.world == true then 
+        if Menu.tabs.world then 
             ImMenu.BeginFrame(1)
             Menu.world_tab.active = ImMenu.Checkbox("Active", Menu.world_tab.active)
             ImMenu.EndFrame()
@@ -569,7 +612,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
             ImMenu.EndFrame()
         end
 
-        if Menu.tabs.players == true then 
+        if Menu.tabs.players then 
             ImMenu.BeginFrame(1)
             Menu.players_tab.active =  ImMenu.Checkbox("Active", Menu.players_tab.active)
             ImMenu.EndFrame()
@@ -614,9 +657,13 @@ callbacks.Register( "Draw", "Muqas esp", function()
 
             ImMenu.BeginFrame(1)
             Menu.players_tab.draw.conds =  ImMenu.Checkbox("Conditions", Menu.players_tab.draw.conds)
+            Menu.players_tab.draw.skeleton =  ImMenu.Checkbox("Skeleton", Menu.players_tab.draw.skeleton)
             ImMenu.EndFrame()
 
             if Menu.players_tab.draw.box then 
+                ImMenu.BeginFrame(1)
+                ImMenu.Text("Box Options")
+                ImMenu.EndFrame()
                 ImMenu.BeginFrame(1)
                 Menu.players_tab.draw.box_cornered =  ImMenu.Checkbox("Cornered Box", Menu.players_tab.draw.box_cornered)
                 Menu.players_tab.draw.box_outlined = ImMenu.Checkbox("Box Outline", Menu.players_tab.draw.box_outlined)
@@ -624,6 +671,10 @@ callbacks.Register( "Draw", "Muqas esp", function()
             end
 
             if Menu.players_tab.draw.health_bar or Menu.players_tab.draw.uber_bar then 
+
+                ImMenu.BeginFrame(1)
+                ImMenu.Text("Health & Uber Bar Options")
+                ImMenu.EndFrame()
 
                 if Menu.players_tab.draw.health_bar then 
                     ImMenu.BeginFrame(1)
@@ -649,7 +700,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
             end
         end
 
-        if Menu.tabs.buildings == true then 
+        if Menu.tabs.buildings then 
             ImMenu.BeginFrame(1)
             Menu.buildings_tab.active =  ImMenu.Checkbox("Active", Menu.buildings_tab.active)
             ImMenu.EndFrame()
@@ -692,7 +743,28 @@ callbacks.Register( "Draw", "Muqas esp", function()
             end
         end
 
-        if Menu.tabs.config == true then 
+        if Menu.tabs.colors then
+            ImMenu.BeginFrame(1)
+            ImMenu.Text("Sorry for no color picker")
+            ImMenu.EndFrame()
+
+            ImMenu.BeginFrame(1)
+            ImMenu.Text("Selected Color")
+            Menu.colors_tab.selected_color = ImMenu.Option(Menu.colors_tab.selected_color, Menu.colors_tab.colors)
+            ImMenu.EndFrame()
+
+            ImMenu.BeginFrame(1)
+            ColorCalculator(Menu.colors_tab.selected_color)[1] = ImMenu.Slider("Red", ColorCalculator(Menu.colors_tab.selected_color)[1] , 0, 255)
+            ImMenu.EndFrame()
+            ImMenu.BeginFrame(1)
+            ColorCalculator(Menu.colors_tab.selected_color)[2] = ImMenu.Slider("Green", ColorCalculator(Menu.colors_tab.selected_color)[2] , 0, 255)
+            ImMenu.EndFrame()
+            ImMenu.BeginFrame(1)
+            ColorCalculator(Menu.colors_tab.selected_color)[3] = ImMenu.Slider("Blue", ColorCalculator(Menu.colors_tab.selected_color)[3] , 0, 255)
+            ImMenu.EndFrame()
+        end
+
+        if Menu.tabs.config then 
             ImMenu.BeginFrame(1)
             if ImMenu.Button("Create/Save CFG") then
                 CreateCFG( [[Muqas lua esp config]] , Menu )
@@ -1009,13 +1081,31 @@ callbacks.Register( "Draw", "Muqas esp", function()
                         end
                     end
 
+                    draw.Color(espColor[1], espColor[2], espColor[3],alpha)
+
                     if Menu.players_tab.draw.tracer then 
-                        draw.Color(espColor[1],espColor[2],espColor[3],alpha)
                         local from_pos, to_pos = calculateTracerPositions(x, y, w, height)
                         draw.Line( from_pos[1], from_pos[2], to_pos[1], to_pos[2] )
                     end
 
-                    if Menu.players_tab.draw.conds or Menu.players_tab.draw.health or Menu.players_tab.draw.uber or Menu.players_tab.draw.class then
+                    if Menu.players_tab.draw.skeleton then 
+                        local hitboxes = p:GetHitboxes()
+                        for i = 1, #boneIDs do
+                            local startBoneID = boneIDs[i][1]
+                            local endBoneID = boneIDs[i][2]
+                            local startBone = hitboxes[startBoneID]
+                            local endBone = hitboxes[endBoneID]
+                            local startCenter = (startBone[1] + startBone[2]) * 0.5
+                            local endCenter = (endBone[1] + endBone[2]) * 0.5
+                            startCenter = client.WorldToScreen(startCenter)
+                            endCenter = client.WorldToScreen(endCenter)
+                            if (startCenter ~= nil and endCenter ~= nil) then
+                                draw.Line(startCenter[1], startCenter[2], endCenter[1], endCenter[2])
+                            end
+                        end
+                    end
+
+                    if Menu.players_tab.draw.conds or Menu.players_tab.draw.health or Menu.players_tab.draw.uber or Menu.players_tab.draw.class or Menu.players_tab.draw.selected_text_pos ~= 1 then -- idk the text positions dont work without ths if function
                         local y_offset = 0
                         local playerConditions = getConditions(p)
     
@@ -1024,7 +1114,7 @@ callbacks.Register( "Draw", "Muqas esp", function()
                         for index, condition in ipairs(playerConditions) do
                             local drawColor = { 0, 255, 179, alpha }
 
-                            if condition == classes[p:GetPropInt("m_iClass")][1] then
+                            if condition == classes[p:GetPropInt("m_iClass")] then
                                 drawColor = { 255, 255, 255, alpha }
                             end
             
