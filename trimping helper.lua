@@ -7,7 +7,6 @@ if (entities.GetLocalPlayer():InCond(17)) then
         cmd:SetButtons(cmd.buttons | IN_FORWARD)
         client.Command( "-moveright", 1 )
     else
-        cmd:SetButtons(cmd.buttons & (~IN_FORWARD))
         client.Command( "-moveright", 0 )
     end
     if input.IsButtonDown( KEY_A ) then 
@@ -15,7 +14,6 @@ if (entities.GetLocalPlayer():InCond(17)) then
         cmd:SetButtons(cmd.buttons | IN_FORWARD)
         client.Command( "-moveleft", 1 )
     else
-        cmd:SetButtons(cmd.buttons & (~IN_FORWARD))
         client.Command( "-moveleft", 0 )
     end
 else 
