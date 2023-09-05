@@ -96,8 +96,8 @@ callbacks.Register( "Draw", function()
             f:SetPropInt(0, "m_fog.enable")
         end
         f:SetPropFloat(settings.density / 100, "m_fog.maxdensity")
-        local bgr = (settings.color_b << 16) | (settings.color_g << 8) | settings.color_r -- idk why the rgb has to be backwards to work
-        f:SetPropInt(bgr , "m_fog.colorPrimary")
+        local rgb = (settings.color_r) | (settings.color_g << 8) | settings.color_b << 16 -- idk why the rgb has to be backwards to work
+        f:SetPropInt(rgb , "m_fog.colorPrimary")
         f:SetPropFloat(settings.fogStart, "m_fog.start")
         f:SetPropFloat(settings.fogEnd, "m_fog.end")
         f:SetPropFloat(settings.farz, "m_fog.farz")
