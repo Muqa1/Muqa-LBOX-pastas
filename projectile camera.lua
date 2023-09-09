@@ -5,18 +5,16 @@ local projectilesTable = {}
 local latestPos = nil
 local originalPos = nil
 local TurnMovementOff = false
-callbacks.Register("CreateMove", function(cmd)
+local function LatestProj(cmd)
     local localPlayer = entities.GetLocalPlayer()
-    if localPlayer == nil then
-        return 
-    end
+    if localPlayer == nil then return end
     local projectiles = entities.FindByClass("CTFGrenadePipebombProjectile")
     local hasLocalProjectiles = false
     for _, p in pairs(projectiles) do
         if not p:IsDormant() then
             local pos = p:GetAbsOrigin()
             local launcher = p:GetPropEntity("m_hLauncher")
-            if launcher:GetPropEntity("m_hOwnerEntity") == localPlayer then
+            if launcher and launcher:GetPropEntity("m_hOwnerEntity") == localPlayer then
                 hasLocalProjectiles = true
                 local alreadyAdded = false
                 for _, v in pairs(projectilesTable) do
@@ -55,9 +53,10 @@ callbacks.Register("CreateMove", function(cmd)
         cmd:SetSideMove(0)
         cmd:SetUpMove(0)
     end
-end)
-callbacks.Register("PostPropUpdate", function()
+end
+local function PropUpdate()
     local localPlayer = entities.GetLocalPlayer()
+    if localPlayer == nil then return end
     if input.IsButtonDown(key) then
         if not originalPos and #projectilesTable ~= 0 then
             originalPos = localPlayer:GetAbsOrigin()
@@ -76,4 +75,6 @@ callbacks.Register("PostPropUpdate", function()
         client.Command( "r_drawviewmodel 1", 1 )
         TurnMovementOff = false
     end
-end)
+end
+callbacks.Register("CreateMove","ProjCamProj", LatestProj)
+callbacks.Register("PostPropUpdate","ProjCamProp", PropUpdate)
