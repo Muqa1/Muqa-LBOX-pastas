@@ -28,16 +28,39 @@ local function getText(player)
     return playerConditions
 end
 
+local function IsFriend(idx, inParty)
+    if idx == client.GetLocalPlayerIndex() then return true end
+
+    local playerInfo = client.GetPlayerInfo(idx)
+    if steam.IsFriend(playerInfo.SteamID) then return true end
+    if playerlist.GetPriority(playerInfo.UserID) < 0 then return true end
+
+    if inParty then
+        local partyMembers = party.GetMembers()
+        if partyMembers == true then
+            for _, member in ipairs(partyMembers) do
+                if member == playerInfo.SteamID then return true end
+            end
+        end
+    end
+
+    return false
+end
+
 local font = draw.CreateFont( "TF2 Build", 12, 400, FONTFLAG_OUTLINE )
 
 local function drawingAcoolESP()
     draw.SetFont( font )
     local lPlr = entities.GetLocalPlayer()
     if lPlr == nil or engine.IsGameUIVisible() then return end
+    local enemy_only = (gui.GetValue( "Enemy only" ) == 1)
+    local local_player = (gui.GetValue( "Local player" ) == 0)
     local players = entities.FindByClass( "CTFPlayer" )
     for i, p in pairs(players) do 
         local pTeam = p:GetTeamNumber()
-        if p ~= lPlr and pTeam ~= lPlr:GetTeamNumber() and not p:IsDormant() and p:IsAlive() then
+        if (not enemy_only or pTeam ~= lPlr:GetTeamNumber()) and not p:IsDormant() and p:IsAlive() or IsFriend(p:GetIndex(), true) then
+
+            if local_player and p == lPlr then goto continue end
 
             local padding = Vector3(0, 0, 6)
 
@@ -69,6 +92,10 @@ local function drawingAcoolESP()
             if playerlist.GetPriority( p ) > 0 then 
                 espColor = {255,255,0,255}
             elseif playerlist.GetPriority( p ) < 0 then 
+                espColor = {18,172,100,255}
+            end
+
+            if IsFriend(p:GetIndex(), true) then 
                 espColor = {18,172,100,255}
             end
 
