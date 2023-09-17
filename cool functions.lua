@@ -216,7 +216,7 @@ local function draw_sphere(center, segments, radius) -- fixes weird lines but fu
 end
 ------------------------
 local function L_line(start_pos, end_pos, secondary_line_size)
-    if start_pos == nil or end_pos == nil then
+    if not (start_pos and end_pos) then
         return
     end
     local direction = end_pos - start_pos
@@ -228,19 +228,26 @@ local function L_line(start_pos, end_pos, secondary_line_size)
     local perpendicular = Vector3(normalized_direction.y, -normalized_direction.x, 0) * secondary_line_size
     local w2s_start_pos = client.WorldToScreen(start_pos)
     local w2s_end_pos = client.WorldToScreen(end_pos)
-    if w2s_start_pos == nil or w2s_end_pos == nil then
+    if not (w2s_start_pos and w2s_end_pos) then
         return
     end
-    draw.Line(w2s_start_pos[1], w2s_start_pos[2], w2s_end_pos[1], w2s_end_pos[2])
     local secondary_line_end_pos = start_pos + perpendicular
     local w2s_secondary_line_end_pos = client.WorldToScreen(secondary_line_end_pos)
-    if w2s_secondary_line_end_pos ~= nil then
-        local w2s_secondary_line_start_pos = w2s_start_pos
-        draw.Line(w2s_secondary_line_start_pos[1], w2s_secondary_line_start_pos[2], w2s_secondary_line_end_pos[1], w2s_secondary_line_end_pos[2])
+    if w2s_secondary_line_end_pos then
+        draw.Line(w2s_start_pos[1], w2s_start_pos[2], w2s_end_pos[1], w2s_end_pos[2])
+        draw.Line(w2s_start_pos[1], w2s_start_pos[2], w2s_secondary_line_end_pos[1], w2s_secondary_line_end_pos[2])
     end
 end
 -------------------
-local function IsVisible(player, localPlayer)
+local function IsVisible(startPos, endPos) -- for positions
+    local trace = engine.TraceLine( startPos, endPos, 100679691 )
+    if trace.endpos == endPos then
+        return true
+    end
+    return false
+end
+
+local function IsVisible(localPlayer, player) -- for players
     local me = localPlayer
     local source = me:GetAbsOrigin() + me:GetPropVector( "localdata", "m_vecViewOffset[0]" );
     local destination = player:GetAbsOrigin() + Vector3(0,0,75)
@@ -323,7 +330,13 @@ local function PositionAngles(source, dest)
 end
 
 -- engine.SetViewAngles(PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), p:GetAbsOrigin())) -- looks at their feet
+--------------------------------
+local function GetHitboxPos(player, hitboxID)
+    local hitbox = player:GetHitboxes()[hitboxID]
+    if not hitbox then return nil end
 
+    return (hitbox[1] + hitbox[2]) * 0.5
+end
 ----------------------------------
 local function IsOnScreen(entity)
     local w2s = client.WorldToScreen(entity:GetAbsOrigin())
@@ -333,4 +346,76 @@ local function IsOnScreen(entity)
         end
     end
     return false
+end
+-------------------------- 
+local function Get2DBoundingBox(entity)
+    local hitbox = entity:EntitySpaceHitboxSurroundingBox()
+    local min = entity:GetAbsOrigin() + Vector3(hitbox[1].x, hitbox[1].y, hitbox[1].z)
+    local max = entity:GetAbsOrigin() + Vector3(hitbox[2].x, hitbox[2].y, hitbox[2].z)
+    local corners = {
+        Vector3(min.x, min.y, min.z),
+        Vector3(min.x, max.y, min.z),
+        Vector3(max.x, max.y, min.z),
+        Vector3(max.x, min.y, min.z),
+        Vector3(max.x, max.y, max.z),
+        Vector3(min.x, max.y, max.z),
+        Vector3(min.x, min.y, max.z),
+        Vector3(max.x, min.y, max.z)
+    }
+    local minX, minY, maxX, maxY = ScrW * 2, ScrH * 2, 0, 0
+    for _, corner in pairs( corners ) do
+        local onScreen = client.WorldToScreen( corner )
+        if onScreen ~= nil then
+            minX, minY = math.min( minX, onScreen[1] ), math.min( minY, onScreen[2] )
+            maxX, maxY = math.max( maxX, onScreen[1] ), math.max( maxY, onScreen[2] )
+        end
+    end
+    return minX, minY, maxX, maxY
+end
+-------------------- 
+local function IsFriend(idx, inParty)
+    if idx == client.GetLocalPlayerIndex() then return true end
+
+    local playerInfo = client.GetPlayerInfo(idx)
+    if steam.IsFriend(playerInfo.SteamID) then return true end
+    if playerlist.GetPriority(playerInfo.UserID) < 0 then return true end
+
+    if inParty then
+        local partyMembers = party.GetMembers()
+        if partyMembers == true then
+            for _, member in ipairs(partyMembers) do
+                if member == playerInfo.SteamID then return true end
+            end
+        end
+    end
+
+    return false
+end
+-------------------------- 
+local function TextFade(x, y, text_string, startColor, endColor)
+    local startX = 0
+    local numChars = #text_string
+    for i = 1, numChars do
+        local t = (i - 1) / (numChars - 1)
+        local r = math.floor(startColor[1] + (endColor[1] - startColor[1]) * t)
+        local g = math.floor(startColor[2] + (endColor[2] - startColor[2]) * t)
+        local b = math.floor(startColor[3] + (endColor[3] - startColor[3]) * t)
+        local a = math.floor(startColor[4] + (endColor[4] - startColor[4]) * t)
+        draw.Color(r, g, b, a)
+        draw.Text(x + startX, y, text_string:sub(i, i))
+        local width = draw.GetTextSize(text_string:sub(i, i))
+        startX = startX + width
+    end
+end
+------------------------------- 
+local function LerpBetweenColors(color1, color2, frequency)
+    local curtime = globals.CurTime()
+    local t = (math.sin(curtime * frequency) + 1) / 2
+    t = math.max(0, math.min(1, t))
+    local r1, g1, b1 = color1[1], color1[2], color1[3]
+    local r2, g2, b2 = color2[1], color2[2], color2[3]
+    local r = math.floor(r1 + (r2 - r1) * t)
+    local g = math.floor(g1 + (g2 - g1) * t)
+    local b = math.floor(b1 + (b2 - b1) * t)
+    return r, g, b
 end
