@@ -61,6 +61,8 @@ local config = {
 
         aa_lines = false,
 
+        damage_logger = true,
+
     }
 
 }
@@ -191,6 +193,8 @@ local function LerpBetweenColors(color1, color2, frequency)
     return r, g, b
 end
 
+local logs = {}
+
 local delays = {
     random_pitch_down = 0,
     random_pitch_up = 0,
@@ -204,6 +208,7 @@ local delays = {
 local function MiscDraw()
     draw.SetFont( tahoma_bold )
     local localPlayer = entities.GetLocalPlayer()
+    if not localPlayer then goto continue end
     if config.antiaim.random_pitch_down then
         local wait = math.random(1, 10)
         if (globals.RealTime() > (delays.random_pitch_down + wait / 10)) then
@@ -469,7 +474,7 @@ local function MiscDraw()
         local statuses = {}
 
 
-        local wpn = entities.GetLocalPlayer():GetPropEntity("m_hActiveWeapon")
+        local wpn = localPlayer:GetPropEntity("m_hActiveWeapon")
             if wpn ~= nil then
                 local critChance = wpn:GetCritChance()
                 local dmgStats = wpn:GetWeaponDamageStats()
@@ -557,11 +562,49 @@ local function MiscDraw()
 
     end
 
+    if config.visuals.damage_logger then 
+        local startY = 0
+        local currentTime = globals.RealTime()
+
+        local startW, startH = math.floor(sW / 2), math.floor(sH * 0.6)
+
+        local time = 4
+    
+        for i = #logs, 1, -1 do 
+            local l = logs[i]
+            local logTime = l.time or currentTime
+            local elapsedTime = currentTime - logTime
+    
+            if elapsedTime >= time then
+                table.remove(logs, i)
+            else
+
+                local alpha = math.max(255 - math.floor(elapsedTime * (255 / time)), 0)
+
+                local r1, g1, b1 = LerpBetweenColors({255, 93, 93}, {255,255,255}, 5)
+                local r2, g2, b2 = LerpBetweenColors({255,255,255}, {255, 93, 93}, 4)
+                local startColor = {r1,g1,b1,alpha}
+                local endColor = {r2,g2,b2,alpha}
+
+
+                -- draw.Color(255, 255, 255, alpha)
+                -- local text = tostring(l.player .. " damage: " .. l.dmg .. " health: " .. l.health)
+                local text = tostring("hit ".. l.player.. " for ".. l.dmg.. " dmg")
+                local width, height = draw.GetTextSize(text)
+                -- draw.Text(500, 500 + startY, text)
+                TextFade(startW - math.floor(width / 2), startH + startY, text, startColor, endColor)
+                startY = startY + height
+            end
+        end
+    end
+    
+    
 
 
 
 
 
+    ::continue::
 
 
     if input.IsButtonPressed( KEY_END ) or input.IsButtonPressed( KEY_INSERT ) or input.IsButtonPressed( KEY_F11 ) then 
@@ -677,6 +720,9 @@ local function MiscDraw()
             ImMenu.BeginFrame(1)
             config.visuals.aa_lines = ImMenu.Checkbox("Antiaim Lines", config.visuals.aa_lines)
             ImMenu.EndFrame()
+            ImMenu.BeginFrame(1)
+            config.visuals.damage_logger = ImMenu.Checkbox("Damage Logger", config.visuals.damage_logger)
+            ImMenu.EndFrame()
 
             if config.visuals.crosshair_indicators then
                 ImMenu.BeginFrame(1)
@@ -774,6 +820,29 @@ local function MiscCreateMove(cmd)
 
 
 end
+
+
+local function dmgLogger(event)
+
+    if (event:GetName() == 'player_hurt' ) and config.visuals.damage_logger then
+  
+        local localPlayer = entities.GetLocalPlayer();
+        local victim = entities.GetByUserID(event:GetInt("userid"))
+        local health = event:GetInt("health")
+        local attacker = entities.GetByUserID(event:GetInt("attacker"))
+        local damage = event:GetInt("damageamount")
+  
+        if (attacker == nil or localPlayer:GetIndex() ~= attacker:GetIndex()) then
+            return
+        end
+  
+        table.insert(logs, {player = victim:GetName(), dmg = damage, health = health, time = globals.RealTime()})
+        -- client.ChatPrintf( "\x078c75ff [spaghetti.vip]" .. "\x01 Hit " ..  "\x07d6b618" .. victim:GetName() .. " \x01for " .. "\x07d6b618" .. damage .. "\x01 HP. " .. "HP left " .. "\x07d6b618" .. health .. "\x01 HP")
+    end
+end
+
+callbacks.Unregister("FireGameEvent", "asdawdaw")
+callbacks.Register( "FireGameEvent", "asdawdaw", dmgLogger )
 
 callbacks.Unregister("Draw", "MiscDraw")
 callbacks.Register( "Draw", "MiscDraw", MiscDraw )
