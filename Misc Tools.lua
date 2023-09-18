@@ -54,14 +54,20 @@ local config = {
             info_y = 500,
         },
 
-        crosshair_indicators = true,
+        crosshair_indicators = false,
         crosshair_indicators_info = {
             cheatName = "lmaobox",
         },
 
         aa_lines = false,
 
-        damage_logger = true,
+        damage_logger = false,
+        damage_logger_info = {
+            damage_logger_movable = false,
+            damage_logger_x = 700,
+            damage_logger_y = 500,
+        },
+        
 
     }
 
@@ -566,7 +572,34 @@ local function MiscDraw()
         local startY = 0
         local currentTime = globals.RealTime()
 
-        local startW, startH = math.floor(sW / 2), math.floor(sH * 0.6)
+        local startW, startH
+        local x, y = config.visuals.damage_logger_info.damage_logger_x, config.visuals.damage_logger_info.damage_logger_y
+        local bW, bH = 100, 20
+        local mX, mY = input.GetMousePos()[1], input.GetMousePos()[2] -- mouse position
+
+        if not config.visuals.damage_logger_info.damage_logger_movable then
+            startW, startH = math.floor(sW / 2), math.floor(sH * 0.6)
+        else
+
+            if input.IsButtonDown(MOUSE_LEFT) and Lbox_Menu_Open and -- is the cursor inside the box?
+                mX >= x and mX <= x + bW and
+                mY >= y and mY <= y + bH then
+                    config.visuals.damage_logger_info.damage_logger_x = mX - math.floor(bW/2)
+                    config.visuals.damage_logger_info.damage_logger_y = mY - math.floor(bH/2)
+            end
+
+            if Lbox_Menu_Open then 
+                draw.Color(41, 41, 41, 225)
+                draw.FilledRect(x, y, x + bW, y + bH)
+                local string = "DMG Log Position"
+                local w, h = draw.GetTextSize(string)
+                draw.Color(255, 255, 255, 255)
+                draw.Text(math.floor(x+(bW/2)-(w/2)), math.floor(y+(bH/2)-(h/2)), string)
+            end
+
+            startW, startH = x + math.floor(bW/2), y + bH
+
+        end
 
         local time = 4
     
@@ -581,8 +614,8 @@ local function MiscDraw()
 
                 local alpha = math.max(255 - math.floor(elapsedTime * (255 / time)), 0)
 
-                local r1, g1, b1 = LerpBetweenColors({255, 93, 93}, {255,255,255}, 5)
-                local r2, g2, b2 = LerpBetweenColors({255,255,255}, {255, 93, 93}, 4)
+                local r1, g1, b1 = LerpBetweenColors({255, 93, 93}, {255,255,255}, l.r1)
+                local r2, g2, b2 = LerpBetweenColors({255,255,255}, {255, 93, 93}, l.r2)
                 local startColor = {r1,g1,b1,alpha}
                 local endColor = {r2,g2,b2,alpha}
 
@@ -724,6 +757,12 @@ local function MiscDraw()
             config.visuals.damage_logger = ImMenu.Checkbox("Damage Logger", config.visuals.damage_logger)
             ImMenu.EndFrame()
 
+            if config.visuals.damage_logger then 
+                ImMenu.BeginFrame(1)
+                config.visuals.damage_logger_info.damage_logger_movable = ImMenu.Checkbox("Damage Logger Movable", config.visuals.damage_logger_info.damage_logger_movable)
+                ImMenu.EndFrame()
+            end
+
             if config.visuals.crosshair_indicators then
                 ImMenu.BeginFrame(1)
                 ImMenu.Text("Custom Cheat Name (must be over 1 character)")
@@ -836,7 +875,7 @@ local function dmgLogger(event)
             return
         end
   
-        table.insert(logs, {player = victim:GetName(), dmg = damage, health = health, time = globals.RealTime()})
+        table.insert(logs, {player = victim:GetName(), dmg = damage, health = health, time = globals.RealTime(), r1 = math.random(1,5), r2 = math.random(1,5)})
         -- client.ChatPrintf( "\x078c75ff [spaghetti.vip]" .. "\x01 Hit " ..  "\x07d6b618" .. victim:GetName() .. " \x01for " .. "\x07d6b618" .. damage .. "\x01 HP. " .. "HP left " .. "\x07d6b618" .. health .. "\x01 HP")
     end
 end
