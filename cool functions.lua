@@ -395,16 +395,38 @@ end
 local function TextFade(x, y, text_string, startColor, endColor)
     local startX = 0
     local numChars = #text_string
-    for i = 1, numChars do
-        local t = (i - 1) / (numChars - 1)
-        local r = math.floor(startColor[1] + (endColor[1] - startColor[1]) * t)
-        local g = math.floor(startColor[2] + (endColor[2] - startColor[2]) * t)
-        local b = math.floor(startColor[3] + (endColor[3] - startColor[3]) * t)
-        local a = math.floor(startColor[4] + (endColor[4] - startColor[4]) * t)
-        draw.Color(r, g, b, a)
-        draw.Text(x + startX, y, text_string:sub(i, i))
-        local width = draw.GetTextSize(text_string:sub(i, i))
-        startX = startX + width
+    if numChars > 1 then
+        for i = 1, numChars do
+            local t = (i - 1) / (numChars - 1)
+            local r = math.floor(startColor[1] + (endColor[1] - startColor[1]) * t)
+            local g = math.floor(startColor[2] + (endColor[2] - startColor[2]) * t)
+            local b = math.floor(startColor[3] + (endColor[3] - startColor[3]) * t)
+            local a = math.floor(startColor[4] + (endColor[4] - startColor[4]) * t)
+            draw.Color(r, g, b, a)
+            draw.Text(x + startX, y, text_string:sub(i, i))
+            local width = draw.GetTextSize(text_string:sub(i, i))
+            startX = startX + width
+        end
+    end
+end
+--------------------------- 
+local function ColorWaveTextEffect(x, y, text_string, startColor, endColor, speed)
+    local numChars = #text_string
+    local currentTime = globals.RealTime()
+    if numChars > 0 then
+        for i = 1, numChars do
+            local t = (i - 1) / (numChars - 1)
+            local waveOffset = math.sin(currentTime * speed + t * math.pi * 2) * 0.5 + 0.5  -- Create a wave effect
+            local color = {
+                math.floor(startColor[1] + (endColor[1] - startColor[1]) * waveOffset),
+                math.floor(startColor[2] + (endColor[2] - startColor[2]) * waveOffset),
+                math.floor(startColor[3] + (endColor[3] - startColor[3]) * waveOffset),
+                math.floor(startColor[4] + (endColor[4] - startColor[4]) * waveOffset)}
+            draw.Color(color[1], color[2], color[3], color[4])
+            draw.Text(x, y, text_string:sub(i, i))
+            local width = draw.GetTextSize(text_string:sub(i, i))
+            x = x + width
+        end
     end
 end
 ------------------------------- 
@@ -419,3 +441,85 @@ local function LerpBetweenColors(color1, color2, frequency)
     local b = math.floor(b1 + (b2 - b1) * t)
     return r, g, b
 end
+------------------------- 
+local function antiaimCross(localplayer_pos, aa_angle, size)
+    local vwA = engine.GetViewAngles()
+    local dir = Vector3(math.cos(math.rad(vwA.y + aa_angle)), math.sin(math.rad(vwA.y + aa_angle)), 0)
+    local p = client.WorldToScreen(localplayer_pos)
+    if p ~= nil then
+        local a1 = localplayer_pos + dir * size
+        local a2 = localplayer_pos + dir
+        local a3 = localplayer_pos + dir * (size * 3)
+        local a4 = localplayer_pos + dir * (size * 3)
+        local a5 = localplayer_pos + dir * (size * 4.5)
+        local a6 = localplayer_pos + dir * (size * 5.5)
+        local b1 = client.WorldToScreen(a1)
+        if b1 ~= nil then
+            local pD = Vector3(-dir.y, dir.x, 0)
+            local r = size * 0.75
+            local c1 = a2 + pD * r
+            local c2 = a2 - pD * r 
+            local c3 = a3 + pD * r
+            local c4 = a3 - pD * r
+            local c5 = a4 + pD * (r * 2.5)
+            local c6 = a4 - pD * (r * 2.5)
+            local c7 = a5 + pD * (r * 2.5)
+            local c8 = a5 - pD * (r * 2.5)
+            local c9 = a6 + pD * r
+            local c10 = a6 - pD * r
+            local c11 = a5 + pD * r
+            local c12 = a5 - pD * r
+            local d1 = client.WorldToScreen(c1)
+            local d2 = client.WorldToScreen(c2)
+            local d3 = client.WorldToScreen(c3)
+            local d4 = client.WorldToScreen(c4)
+            local d5 = client.WorldToScreen(c5)
+            local d6 = client.WorldToScreen(c6)
+            local d7 = client.WorldToScreen(c7)
+            local d8 = client.WorldToScreen(c8)
+            local d9 = client.WorldToScreen(c9)
+            local d10 = client.WorldToScreen(c10)
+            local d11 = client.WorldToScreen(c11)
+            local d12 = client.WorldToScreen(c12)
+            if d1 ~= nil and d2 ~= nil then
+                draw.Line(d1[1], d1[2], d2[1], d2[2])
+                draw.Line(d1[1], d1[2], d3[1], d3[2])
+                draw.Line(d2[1], d2[2], d4[1], d4[2])
+                draw.Line(d4[1], d4[2], d6[1], d6[2])
+                draw.Line(d3[1], d3[2], d5[1], d5[2])
+                draw.Line(d5[1], d5[2], d7[1], d7[2])
+                draw.Line(d6[1], d6[2], d8[1], d8[2])
+                draw.Line(d8[1], d8[2],d12[1], d12[2])
+                draw.Line(d7[1], d7[2],d11[1], d11[2])
+                draw.Line(d9[1], d9[2],d11[1], d11[2])
+                draw.Line(d10[1], d10[2],d12[1], d12[2])
+                draw.Line(d9[1], d9[2], d10[1], d10[2])
+            end
+        end
+    end
+end
+-------------------------------------
+local function antiaimArrow(localplayer_pos, aa_angle, range)
+    local vwA = engine.GetViewAngles()
+    local direction = Vector3(math.cos(math.rad(vwA.y + aa_angle)), math.sin(math.rad(vwA.y + aa_angle)), 0)
+    local screenPos = client.WorldToScreen(localplayer_pos)
+    if screenPos ~= nil then
+        local endPoint = localplayer_pos + direction * range
+        local endPoint2 = localplayer_pos + direction * (range * 0.85)
+        local screenPos1 = client.WorldToScreen(endPoint)
+        if screenPos1 ~= nil then
+            draw.Line(screenPos[1], screenPos[2], screenPos1[1], screenPos1[2])
+            local perpendicularDirection = Vector3(-direction.y, direction.x, 0)
+            local perpendicularEndPoint1 = endPoint2 + perpendicularDirection * (range * 0.1) 
+            local perpendicularEndPoint2 = endPoint2 - perpendicularDirection * (range * 0.1) 
+            local screenPos2 = client.WorldToScreen(perpendicularEndPoint1)
+            local screenPos3 = client.WorldToScreen(perpendicularEndPoint2)
+            if screenPos2 ~= nil and screenPos3 ~= nil then
+                draw.Line(screenPos2[1], screenPos2[2], screenPos3[1], screenPos3[2])
+                draw.Line(screenPos1[1], screenPos1[2], screenPos3[1], screenPos3[2])
+                draw.Line(screenPos1[1], screenPos1[2], screenPos2[1], screenPos2[2])
+            end
+        end
+    end
+end
+------------------------------------
