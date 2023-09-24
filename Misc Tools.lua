@@ -54,6 +54,8 @@ local config = {
         info_pos = {
             info_x = 600,
             info_y = 500,
+            ratioX = 0,
+            ratioY = 0,
         },
 
         crosshair_indicators = false,
@@ -72,6 +74,8 @@ local config = {
             damage_logger_movable = false,
             damage_logger_x = 700,
             damage_logger_y = 500,
+            ratioX = 0,
+            ratioY = 0,
         },
         
 
@@ -180,6 +184,26 @@ local function TextFade(x, y, text_string, startColor, endColor)
             draw.Text(x + startX, y, text_string:sub(i, i))
             local width = draw.GetTextSize(text_string:sub(i, i))
             startX = startX + width
+        end
+    end
+end
+
+local function ColorWaveTextEffect(x, y, text_string, startColor, endColor, speed)
+    local numChars = #text_string
+    local currentTime = globals.RealTime()
+    if numChars > 0 then
+        for i = 1, numChars do
+            local t = (i - 1) / (numChars - 1)
+            local waveOffset = math.sin(currentTime * speed + t * math.pi * 2) * 0.5 + 0.5  -- Create a wave effect
+            local color = {
+                math.floor(startColor[1] + (endColor[1] - startColor[1]) * waveOffset),
+                math.floor(startColor[2] + (endColor[2] - startColor[2]) * waveOffset),
+                math.floor(startColor[3] + (endColor[3] - startColor[3]) * waveOffset),
+                math.floor(startColor[4] + (endColor[4] - startColor[4]) * waveOffset)}
+            draw.Color(color[1], color[2], color[3], color[4])
+            draw.Text(x, y, text_string:sub(i, i))
+            local width = draw.GetTextSize(text_string:sub(i, i))
+            x = x + width
         end
     end
 end
@@ -410,18 +434,35 @@ local function MiscDraw()
 
         local mX, mY = input.GetMousePos()[1], input.GetMousePos()[2] -- mouse position
 
-        if input.IsButtonDown(MOUSE_LEFT) and Lbox_Menu_Open and -- is the cursor inside the box?
-            mX >= x and mX <= x + bW and
-            mY >= y and mY <= y + bH then
-            config.visuals.info_pos.info_x = mX - flr(bW/2)
-            config.visuals.info_pos.info_y = mY - flr(bH/2)
-        end
+        if Lbox_Menu_Open and mX >= x and mX <= x + bW and mY >= y and mY <= y + bH then
 
-        draw.Color(99, 110, 255, 255)
+            if not input.IsButtonDown(MOUSE_LEFT) then
+
+                config.visuals.info_pos.ratioX = ((mX - x) / bW)
+                config.visuals.info_pos.ratioY = ((mY - y) / bH)
+
+            else
+    
+                config.visuals.info_pos.info_x = mX - flr(bW * config.visuals.info_pos.ratioX)
+                config.visuals.info_pos.info_y = mY - flr(bH * config.visuals.info_pos.ratioY)
+
+            end
+        end
+    
+
+        draw.Color(40, 40, 40, 255)
         --draw.FilledRect(x, y, x + bW, y + bH)
-        draw.FilledRectFade(x, y, x + bW, flr(y + bH/2), 0, 125, false)
+        draw.FilledRectFade(x, y, x + bW, y + bH, 255, 0, false)
         
-        draw.FilledRectFade(x, flr(y + bH/2), x + bW, y + bH, 125, 0, false)
+        draw.Color(140, 147, 255, 255)
+        draw.Line(x, y, x + bW, y)
+        --draw.OutlinedRect(x, y, x + bW, y + bH)
+
+        draw.FilledRectFade(x, y, x+1, y + bH, 255, 0, false)
+        draw.FilledRectFade(x+bW-1, y, x+bW, y + bH, 255, 0, false)
+
+        --draw.FilledRectFade(x, y, x + bW, flr(y + bH/2), 0, 125, false)
+        --draw.FilledRectFade(x, flr(y + bH/2), x + bW, y + bH, 125, 0, false)
 
         -- draw.Color(29, 189, 165, 255)
         -- draw.OutlinedRect(x, y, x + bW, y + bH)
@@ -436,10 +477,10 @@ local function MiscDraw()
         -- local startColor = {r1, g1, b1,255} 
         -- local endColor = {r2, g2, b2,255}  
 
-        local startColor = {99, 110, 255,255} 
-        local endColor = {213, 232, 255,255}  
+        local startColor = {255, 255, 255,255} 
+        local endColor = {60, 60, 60,255}  
         
-        TextFade(flr(x+(bW/2)-(tW/2)), flr(y+(bH/2)-(tH/2)), name, startColor, endColor)
+        ColorWaveTextEffect(flr(x+(bW/2)-(tW/2)), flr(y+(bH/2)-(tH/2)), name, startColor, endColor, -3)
 
 
         --[[ statuses start ]]--
@@ -523,7 +564,8 @@ local function MiscDraw()
             local startColor = v[2]
             local endColor = {f(v[2][1] * 0.4), f(v[2][2] * 0.4), f(v[2][3] * 0.4), 255}
             -- local endColor = {f(255 - v[2][1]), f(255 - v[2][2]), f(255 - v[2][3]), 255}
-            TextFade(x + 1, y + bH + 1 + startY, v[1], startColor, endColor)
+            draw.Color(table.unpack(v[2]))
+            draw.Text(x + 1, y + bH + 1 + startY, v[1])
             startY = startY + h
         end
 
@@ -654,11 +696,15 @@ local function MiscDraw()
             startW, startH = math.floor(sW / 2), math.floor(sH * 0.6)
         else
 
-            if input.IsButtonDown(MOUSE_LEFT) and Lbox_Menu_Open and -- is the cursor inside the box?
-                mX >= x and mX <= x + bW and
-                mY >= y and mY <= y + bH then
-                    config.visuals.damage_logger_info.damage_logger_x = mX - math.floor(bW/2)
-                    config.visuals.damage_logger_info.damage_logger_y = mY - math.floor(bH/2)
+            if Lbox_Menu_Open and mX >= x and mX <= x + bW and mY >= y and mY <= y + bH then
+
+                if not input.IsButtonDown(MOUSE_LEFT) then
+                    config.visuals.damage_logger_info.ratioX = ((mX - x) / bW)
+                    config.visuals.damage_logger_info.ratioY = ((mY - y) / bH)
+                else
+                    config.visuals.damage_logger_info.damage_logger_x = mX - math.floor(bW * config.visuals.damage_logger_info.ratioX)
+                    config.visuals.damage_logger_info.damage_logger_y = mY - math.floor(bH * config.visuals.damage_logger_info.ratioY)
+                end
             end
 
             if Lbox_Menu_Open then 
