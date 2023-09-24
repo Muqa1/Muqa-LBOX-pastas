@@ -46,6 +46,8 @@ local function LatestProj(cmd)
     end
     if latestProj then
         latestPos = latestProj:GetAbsOrigin() - Vector3(0,0,50)
+    else
+        latestPos = nil
     end
     if TurnMovementOff then 
         cmd:SetButtons(cmd.buttons & (~IN_ATTACK))
