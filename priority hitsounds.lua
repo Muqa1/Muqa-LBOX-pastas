@@ -6,7 +6,7 @@ local function f(event)
         local a=entities.GetByUserID(event:GetInt("attacker"))
         if (a==nil or lPlr:GetIndex()~=a:GetIndex()) then return end
         if playerlist.GetPriority(v)>0 then 
-            if h == 0 then 
+            if h==0 then 
                 engine.PlaySound("replay/saved.wav") -- killsound
             else
                 engine.PlaySound("replay/saved_take.wav") -- hitsound
@@ -17,4 +17,4 @@ local function f(event)
         end
     end
 end
-callbacks.Register("FireGameEvent", "exampledamageLogger", f)
+callbacks.Register("FireGameEvent", "Hello World!", f)
