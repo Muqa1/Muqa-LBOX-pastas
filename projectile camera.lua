@@ -13,8 +13,8 @@ local function LatestProj(cmd)
     for _, p in pairs(projectiles) do
         if not p:IsDormant() then
             local pos = p:GetAbsOrigin()
-            local launcher = p:GetPropEntity("m_hLauncher")
-            if launcher and launcher:GetPropEntity("m_hOwnerEntity") == localPlayer then
+            local thrower = p:GetPropEntity("m_hThrower")
+            if thrower and thrower == localPlayer and p:GetPropInt("m_iType") == 1 then
                 hasLocalProjectiles = true
                 local alreadyAdded = false
                 for _, v in pairs(projectilesTable) do
