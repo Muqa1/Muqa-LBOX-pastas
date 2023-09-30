@@ -42,6 +42,7 @@ local menu = {
         leg_jitter = false,
 
         crosshair_indicators = false,
+        crosshair_indicators_dt_bar = false,
 
         AA_lines = false,
         AA_lines_alt = false,
@@ -59,6 +60,8 @@ local menu = {
         fine_shot_m8 = false,
 
         autostrafe = false,
+
+        smooth_on_spec = false,
     },
 
     sliders = {
@@ -429,10 +432,11 @@ local function DrawMenu()
     if menu.tabs.tab_2 then
         local x1,y1 = x+5, y+20
 
-        Island(x1,y1,x1+150,y1+30,"Crosshair Indicators")
+        Island(x1,y1,x1+150,y1+55,"Crosshair Indicators")
         Toggle(x1+5, y1+5,"Enable", "crosshair_indicators")
+        Toggle(x1+5, y1+30,"Disable Lbox's Dt Bar", "crosshair_indicators_dt_bar")
 
-        y1 = y1+50
+        y1 = y1+75
         Island(x1,y1,x1+150,y1+80,"Antiaim Lines")
         Toggle(x1+5, y1+5,"Enable", "AA_lines")
         Toggle(x1+5, y1+30,"Godly HVH Lines", "AA_lines_alt")
@@ -467,6 +471,10 @@ local function DrawMenu()
         y1 = y1+50
         Island(x1,y1,x1+150,y1+30,"Autostrafer only on WASD")
         Toggle(x1+5, y1+5,"Enable", "autostrafe")
+
+        y1 = y1+50
+        Island(x1,y1,x1+150,y1+30,"Smooth When Spectated")
+        Toggle(x1+5, y1+5,"Enable", "smooth_on_spec")
     end
 end
 callbacks.Unregister( "Draw", "awftgybhdunjmiko")
@@ -601,6 +609,25 @@ local function antiaimCross(localplayer_pos, aa_angle, size)
     end
 end
 
+local function IsFriend(idx, inParty)
+    if idx == client.GetLocalPlayerIndex() then return true end
+
+    local playerInfo = client.GetPlayerInfo(idx)
+    if steam.IsFriend(playerInfo.SteamID) then return true end
+    if playerlist.GetPriority(playerInfo.UserID) < 0 then return true end
+
+    if inParty then
+        local partyMembers = party.GetMembers()
+        if partyMembers == true then
+            for _, member in ipairs(partyMembers) do
+                if member == playerInfo.SteamID then return true end
+            end
+        end
+    end
+
+    return false
+end
+
 local function antiaimArrow(localplayer_pos, aa_angle, range)
     local vwA = engine.GetViewAngles()
     if not aa_angle then return end
@@ -664,6 +691,7 @@ local function NonMenuDraw()
     if menu.buttons.cfg_save then 
         CreateCFG([[MiscToolsLua]], menu)
     end
+    
 
     if menu.buttons.cfg_load then 
         menu = LoadCFG([[MiscToolsLua]])
@@ -671,6 +699,7 @@ local function NonMenuDraw()
 
     local localPlayer = entities.GetLocalPlayer()
     if not localPlayer then goto continue end
+    local r,g,b = LerpBetweenColors({135, 141, 250}, {196, 147, 165}, 1)
     if menu.toggles.pitch_rand_down then
         local wait = math.random(1, 10)
         if (globals.RealTime() > (delays.random_pitch_down + wait / 10)) then
@@ -814,6 +843,9 @@ local function NonMenuDraw()
             draw.Text(math.floor(startW - (w/2)), startH + startY, v[1] )
             startY = startY + h
         end
+        if menu.toggles.crosshair_indicators_dt_bar then 
+            gui.SetValue("double tap indicator size", 0)
+        end
     end
 
     if menu.toggles.info_panel then 
@@ -841,7 +873,8 @@ local function NonMenuDraw()
         --draw.FilledRect(x, y, x + bW, y + bH)
         draw.FilledRectFade(x, y, x + bW, y + bH, 255, 0, false)
         
-        draw.Color(140, 147, 255, 255)
+        --draw.Color(140, 147, 255, 255)
+        draw.Color(r, g, b, 255)
         draw.Line(x, y, x + bW, y)
         --draw.OutlinedRect(x, y, x + bW, y + bH)
 
@@ -854,7 +887,6 @@ local function NonMenuDraw()
         -- draw.Color(29, 189, 165, 255)
         -- draw.OutlinedRect(x, y, x + bW, y + bH)
 
-        draw.Color(225, 225, 225, 255)
         draw.SetFont( tahoma_bold )
         local name = "Info Panel"
         local tW, tH = draw.GetTextSize(name) -- text width, text height
@@ -864,11 +896,12 @@ local function NonMenuDraw()
     
         -- local startColor = {r1, g1, b1,255} 
         -- local endColor = {r2, g2, b2,255}  
-
-        local startColor = {255, 255, 255,255} 
-        local endColor = {60, 60, 60,255}  
+        local r1,g1,b1 = LerpBetweenColors({196, 147, 165}, {255,255,255}, 1)
+        local startColor = {r1, g1, b1,255} 
+        local r2,g2,b2 = LerpBetweenColors({135, 141, 250}, {255,255,255}, -1.5)
+        local endColor = {r2, g2, b2,255} 
         
-        ColorWaveTextEffect(f(x+(bW/2)-(tW/2)), f(y+(bH/2)-(tH/2)), name, startColor, endColor, -3)
+        TextFade(f(x+(bW/2)-(tW/2)), f(y+(bH/2)-(tH/2)), name, startColor, endColor)
         draw.SetFont( tahoma )
 
         --[[ statuses start ]]--
@@ -1011,8 +1044,10 @@ local function NonMenuDraw()
                 end
             end
             if Lbox_Menu_Open then 
-                draw.Color(41, 41, 41, 225)
+                draw.Color(r, g, b, 50)
                 draw.FilledRect(x, y, x + bW, y + bH)
+                draw.Color(r, g, b, 255)
+                draw.OutlinedRect(x, y, x + bW, y + bH)
                 local string = "DMG Log Position"
                 local w, h = draw.GetTextSize(string)
                 draw.Color(255, 255, 255, 255)
@@ -1069,6 +1104,10 @@ end
 callbacks.Unregister("FireGameEvent", "asdawdaw")
 callbacks.Register( "FireGameEvent", "asdawdaw", dmgLogger )
 
+local AimModeBefore1 = nil
+local AimModeBefore2 = nil
+local AimModeTick = 0
+
 local function CreateMove(cmd)
 
     if menu.toggles.AA_spin_enable then 
@@ -1095,6 +1134,39 @@ local function CreateMove(cmd)
         gui.SetValue( "Anti Aim - Custom Yaw (real)", a(gui.GetValue( "Anti Aim - Custom Yaw (real)" ) + add))
     end
 
+    if menu.toggles.smooth_on_spec then 
+        gui.SetValue("disable aimbot when spectated", 0)
+        local players = entities.FindByClass("CTFPlayer")
+        local foundPlayer = false -- Flag to keep track of whether a player meets the conditions
+        for i, p in pairs(players) do
+            if (p:IsAlive() == false) and (p:IsDormant() == false) and not (IsFriend(p:GetIndex(), true)) then
+                if p:GetPropEntity("m_hObserverTarget"):GetName() == steam.GetPlayerName(steam.GetSteamID()) then
+                    if p:GetPropInt("m_iObserverMode") == 4 then 
+                        foundPlayer = true -- Set the flag to true if a player meets the conditions
+                        break -- No need to continue searching, we found a player
+                    end
+                end
+            end
+        end
+        if foundPlayer then
+            if not AimModeBefore1 and not AimModeBefore2 then
+                AimModeBefore1 = gui.GetValue("aim method")
+                AimModeBefore2 = gui.GetValue("aim method (projectile)")
+            end
+            gui.SetValue("aim method", "smooth")
+            gui.SetValue("aim method (projectile)", "smooth")
+            AimModeTick = globals.TickCount()
+        else
+            if AimModeBefore1 ~= nil and AimModeBefore2 ~= nil then
+                gui.SetValue("aim method", tostring(AimModeBefore1))
+                gui.SetValue("aim method (projectile)", tostring(AimModeBefore2))
+                if AimModeTick < globals.TickCount()+2 then
+                    AimModeBefore1 = nil
+                    AimModeBefore2 = nil
+                end
+            end
+        end
+    end    
 
     if menu.toggles.leg_jitter then
         local value = menu.sliders.leg_jitter_value
@@ -1115,15 +1187,24 @@ local function CreateMove(cmd)
 end
 callbacks.Register( "CreateMove", "awfgtghydui", CreateMove )
 
-local lines = {"⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠴⠤⠤⠴⠄⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⣠⠄⠒⠉⠀⠀⠀⠀⠀⠀⠀⠀⠁⠃⠆⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⢀⡜⠁⠀⠀⠀⢠⡄⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠑⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⢈⠁⠀⠀⠠⣿⠿⡟⣀⡹⠆⡿⣃⣰⣆⣤⣀⠀⠀⠹⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⣼⠀⠀⢀⣀⣀⣀⣀⡈⠁⠙⠁⠘⠃⠡⠽⡵⢚⠱⠂⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⢐⣢⣤⣵⡄⢀⠀⢀⢈⣉⠉⠉⠒⠤⠀⠿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠘⡇⠀⠀⠀⠀⠀⠉⠉⠁⠁⠈⠀⠸⢖⣿⣿⣷⠀⠀⢰⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⢀⠃⠀⡄⠀⠈⠉⠀⠀⠀⢴⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⢈⣇⠀⠀⠀⠀⠀⠀⠀⢰⠉⠀⠀⠱⠀⠀⠀⠀⠀⢠⡄⠀⠀⠀⠀⠀⣀⠔⠒⢒⡩⠃⠀⠀⠀loaded godmode lua⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⣴⣿⣤⢀⠀⠀⠀⠀⠀⠈⠓⠒⠢⠔⠀⠀⠀⠀⠀⣶⠤⠄⠒⠒⠉⠁⠀⠀⠀⢸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⡄⠤⠒⠈⠈⣿⣿⣽⣦⠀⢀⢀⠰⢰⣀⣲⣿⡐⣤⠀⠀⢠⡾⠃⠀⠀⠀⠀⠀⠀⠀⣀⡄⣠⣵⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠘⠏⢿⣿⡁⢐⠶⠈⣰⣿⣿⣿⣿⣷⢈⣣⢰⡞⠀⠀⠀⠀⠀⠀⢀⡴⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠈⢿⣿⣍⠀⠀⠸⣿⣿⣿⣿⠃⢈⣿⡎⠁⠀⠀⠀⠀⣠⠞⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠈⢙⣿⣆⠀⠀⠈⠛⠛⢋⢰⡼⠁⠁⠀⠀⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠚⣷⣧⣷⣤⡶⠎⠛⠁⠀⠀⠀⢀⡤⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠈⠁⠀⠀⠀⠀⠀⠠⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"}
-local clr1 = {115, 119, 255}
-local clr2 = {224, 173, 199}
-for i = 1, #lines do
-    local t = i / #lines
-    local clr = {
-        math.floor(clr1[1] + (clr2[1] - clr1[1]) * t),
-        math.floor(clr1[2] + (clr2[2] - clr1[2]) * t),
-        math.floor(clr1[3] + (clr2[3] - clr1[3]) * t)
-    }
-    printc(clr[1], clr[2], clr[3], 255, lines[i])
+local t = globals.RealTime()
+client.Command("clear", true)
+local function OnLoad()
+    local lines = {"⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠴⠤⠤⠴⠄⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⣠⠄⠒⠉⠀⠀⠀⠀⠀⠀⠀⠀⠁⠃⠆⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⢀⡜⠁⠀⠀⠀⢠⡄⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠑⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⢈⠁⠀⠀⠠⣿⠿⡟⣀⡹⠆⡿⣃⣰⣆⣤⣀⠀⠀⠹⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⣼⠀⠀⢀⣀⣀⣀⣀⡈⠁⠙⠁⠘⠃⠡⠽⡵⢚⠱⠂⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⢐⣢⣤⣵⡄⢀⠀⢀⢈⣉⠉⠉⠒⠤⠀⠿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠘⡇⠀⠀⠀⠀⠀⠉⠉⠁⠁⠈⠀⠸⢖⣿⣿⣷⠀⠀⢰⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⢀⠃⠀⡄⠀⠈⠉⠀⠀⠀⢴⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⢈⣇⠀⠀⠀⠀⠀⠀⠀⢰⠉⠀⠀⠱⠀⠀⠀⠀⠀⢠⡄⠀⠀⠀⠀⠀⣀⠔⠒⢒⡩⠃⠀⠀⠀loaded godmode lua⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⣴⣿⣤⢀⠀⠀⠀⠀⠀⠈⠓⠒⠢⠔⠀⠀⠀⠀⠀⣶⠤⠄⠒⠒⠉⠁⠀⠀⠀⢸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⡄⠤⠒⠈⠈⣿⣿⣽⣦⠀⢀⢀⠰⢰⣀⣲⣿⡐⣤⠀⠀⢠⡾⠃⠀⠀⠀⠀⠀⠀⠀⣀⡄⣠⣵⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠘⠏⢿⣿⡁⢐⠶⠈⣰⣿⣿⣿⣿⣷⢈⣣⢰⡞⠀⠀⠀⠀⠀⠀⢀⡴⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠈⢿⣿⣍⠀⠀⠸⣿⣿⣿⣿⠃⢈⣿⡎⠁⠀⠀⠀⠀⣠⠞⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠈⢙⣿⣆⠀⠀⠈⠛⠛⢋⢰⡼⠁⠁⠀⠀⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠚⣷⣧⣷⣤⡶⠎⠛⠁⠀⠀⠀⢀⡤⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠈⠁⠀⠀⠀⠀⠀⠠⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"}
+    local clr1 = {115, 119, 255}
+    local clr2 = {224, 173, 199}
+    if t < globals.RealTime() + 1 then
+        for i = 1, #lines do
+            local t = i / #lines
+            local clr = {
+                math.floor(clr1[1] + (clr2[1] - clr1[1]) * t),
+                math.floor(clr1[2] + (clr2[2] - clr1[2]) * t),
+                math.floor(clr1[3] + (clr2[3] - clr1[3]) * t)
+            }
+            printc(clr[1], clr[2], clr[3], 255, lines[i])
+        end
+        callbacks.Unregister( "Draw", "awjkudl9i0" )
+    end
 end
+callbacks.Unregister( "Draw", "awjkudl9i0" )
+callbacks.Register( "Draw", "awjkudl9i0", OnLoad )
