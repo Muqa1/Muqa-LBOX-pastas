@@ -191,7 +191,7 @@ local function Island(x,y,x2,y2, name)
     draw.OutlinedRect(x, y - 15, x2, y)
     draw.Color( 255,255,255,255 )
     local w,h = draw.GetTextSize(name)
-    draw.Text(math.floor(x+((x2-x)/2)-(w/2)), math.floor(y-15), name )
+    draw.Text(math.floor(x+((x2-x)/2)-(w/2)), math.floor(y-14), name )
 end
 
 local function Slider(x,y,x2,y2, sliderValue ,min,max, name)
@@ -299,7 +299,7 @@ local function DrawMenu()
     local w, h = draw.GetTextSize(string)
     draw.Color(255, 255, 255, 255)
     --draw.Text(math.floor(x+(bW/2)-(w/2)), math.floor(y-h), string) -- name
-    ColorWaveTextEffect(math.floor(x+(bW/2)-(w/2)), math.floor(y-15), string, {135, 141, 250,125}, {224, 173, 199,255}, -1)
+    ColorWaveTextEffect(math.floor(x+(bW/2)-(w/2)), math.floor(y-14), string, {135, 141, 250,125}, {224, 173, 199,255}, -1)
     --TextInCenter(x, y - 15, x + bW, y, string)
 
     draw.Color(255,255,255,200)
