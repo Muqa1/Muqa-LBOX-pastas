@@ -1168,7 +1168,7 @@ local function CreateMove(cmd)
         end
     end    
 
-    if menu.toggles.leg_jitter then
+    if menu.toggles.leg_jitter and entities.GetLocalPlayer():EstimateAbsVelocity():Length() < menu.sliders.leg_jitter_value+1 then
         local value = menu.sliders.leg_jitter_value
         if (cmd.sidemove == 0) then
             if cmd.command_number % 2 == 0 then
