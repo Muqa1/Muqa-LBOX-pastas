@@ -2,8 +2,8 @@ local menu = {
     x = 500,
     y = 500,
 
-    w = 500,
-    h = 400,
+    w = 405,
+    h = 330,
 
     rX = 0,
     rY = 0,
@@ -198,11 +198,7 @@ local Lbox_Menu_Open = true
 local function toggleMenu()
     local currentTime = globals.RealTime()
     if currentTime - lastToggleTime >= 0.1 then
-        if Lbox_Menu_Open == false then
-            Lbox_Menu_Open = true
-        elseif Lbox_Menu_Open == true then
-            Lbox_Menu_Open = false
-        end
+        Lbox_Menu_Open = not Lbox_Menu_Open
         lastToggleTime = currentTime
     end
 end
@@ -263,18 +259,18 @@ local function DrawMenu()
 
 
     draw.Color(150,150,150,255)
-    draw.Line(x+bW-5,y+bH-1,x+bW,y+bH-5)
-    draw.Line(x+bW-10,y+bH-1,x+bW,y+bH-10)
-    draw.Line(x+bW-15,y+bH-1,x+bW,y+bH-15)
+    draw.Line(x+bW-5,y+bH-1,x+bW-1,y+bH-5) -- resize window
+    draw.Line(x+bW-10,y+bH-1,x+bW-1,y+bH-10)
+    draw.Line(x+bW-15,y+bH-1,x+bW-1,y+bH-15)
     draw.Text(x+bW, y+bH, "w: ".. menu.w.. " | h: ".. menu.h)
     if IsMouseInBounds(x+bW-15,y+bH-15,x+bW,y+bH) and input.IsButtonDown(MOUSE_LEFT) then 
         menu.w = mX-x+10
         menu.h = mY-y+10
-        if menu.w < 300 then 
-            menu.w = 301
+        if menu.w < 405 then 
+            menu.w = 405
         end
-        if menu.h < 150 then 
-            menu.h = 151
+        if menu.h < 330 then 
+            menu.h = 330
         end
     end
 
@@ -335,7 +331,7 @@ local function DrawMenu()
     x = x + 90
 
     if menu.tabs.tab_1 then
-        local x1,y1 = x+5, y+17
+        local x1,y1 = x+5, y+20
 
         Island(x1,y1,x1+150,y1+130,"Antiaim Spin (real angle only)")
         Toggle(x1+5, y1+5,"Enable", "AA_spin_enable")
@@ -359,7 +355,7 @@ local function DrawMenu()
         y1 = y1+65
         Slider(x1+5,y1+0,x1+145,y1+10, "rand_fakelag_min" ,1,22, "Min Ticks")
 
-        x1,y1 = x+160, y+17
+        x1,y1 = x+160, y+20
         Island(x1,y1,x1+150,y1+175,"Rotate Dynamic")
         Toggle(x1+5, y1+5,"Enable", "rotate_dyn_enable")
         Slider(x1+5,y1+40,x1+145,y1+50, "rotate_dyn_delay" ,0,5000, "Delay")
@@ -379,7 +375,7 @@ local function DrawMenu()
     end
 
     if menu.tabs.tab_2 then
-        local x1,y1 = x+5, y+17
+        local x1,y1 = x+5, y+20
 
         Island(x1,y1,x1+150,y1+30,"Crosshair Indicators")
         Toggle(x1+5, y1+5,"Enable", "crosshair_indicators")
