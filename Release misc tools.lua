@@ -19,7 +19,10 @@ local menu = {
         antiaim = false,
         visuals = false,
         misc = false,
-        cfg = false
+        cfg = false,
+
+        cfg_load = false,
+        cfg_save = false,
     },
 
     toggles = {
@@ -32,6 +35,7 @@ local menu = {
         pitch_rand_down = false,
 
         rotate_dyn_enable = false,
+        rotate_dyn_switch = false,
 
         rand_fakelag = false,
 
@@ -41,6 +45,20 @@ local menu = {
 
         AA_lines = false,
         AA_lines_alt = false,
+
+        info_panel = false,
+
+        dmg_logger = false,
+        dmg_logger_custom_pos = false,
+
+        inf_respawn = false,
+
+        spy_warning = false,
+        spy_warning_call_out = false,
+
+        fine_shot_m8 = false,
+
+        autostrafe = false,
     },
 
     sliders = {
@@ -59,6 +77,22 @@ local menu = {
 
         AA_lines_size = 20,
 
+        spy_warning_dist = 230,
+
+    },
+
+    info_panel = {
+        x = 5,
+        y = 500,
+        rX = 0,
+        rY = 0,
+    },
+
+    dmg_logger = {
+        x = 5,
+        y = 500,
+        rX = 0,
+        rY = 0,
     },
 }
 
@@ -160,7 +194,6 @@ end
 local function Slider(x,y,x2,y2, sliderValue ,min,max, name)
     local mX, mY = input.GetMousePos()[1], input.GetMousePos()[2]
     local value = menu.sliders[sliderValue]
-
     if IsMouseInBounds(x,y,x2,y2) and input.IsButtonDown(MOUSE_LEFT) then 
         function clamp(value, min, max) -- math.clamp was causing errors :shrug:
             return math.max(min, math.min(max, value))
@@ -169,27 +202,40 @@ local function Slider(x,y,x2,y2, sliderValue ,min,max, name)
         local value2 = math.floor((min + (max - min) * percent))
         menu.sliders[sliderValue] = value2
     end
-
     draw.Color(40,40,40,255)
     draw.OutlinedRect(x,y,x2,y2)
     draw.Color(10,10,10,50)
     draw.FilledRect(x,y,x2,y2)
-
     local r,g,b = LerpBetweenColors({135, 141, 250}, {196, 147, 165}, 1)
     draw.Color( r,g,b,40 )
-
     local sliderWidth = math.floor((x2-x) * (value - min) / (max - min))
     local pos = {x, y, x + sliderWidth, y2}
     draw.FilledRect(table.unpack(pos))
     draw.Color( r,g,b,255 )
     draw.OutlinedRect(table.unpack(pos))
-    
     draw.Color(255,255,255,255)
     local w,h = draw.GetTextSize( value )
     draw.Text(x2-w, pos[2]-h, value)
-
     w,h = draw.GetTextSize( name )
     draw.Text(x, pos[2]-h, name)
+end
+
+local function CFGbutton(x,y,x2,y2,name,button)
+    local r,g,b = LerpBetweenColors({135, 141, 250}, {196, 147, 165}, 1)
+    local clr = {r, g, b}
+    if IsMouseInBounds(x,y,x2,y2) and input.IsButtonPressed(MOUSE_LEFT) then 
+        clr = {175, 175, 175}
+        menu.buttons[button] = true
+    else
+        menu.buttons[button] = false
+    end
+    draw.Color( clr[1],clr[2],clr[3],40 )
+    draw.FilledRect(x, y, x2, y2)
+    draw.Color( clr[1],clr[2],clr[3],125 )
+    draw.OutlinedRect(x, y, x2, y2)
+    local w,h = draw.GetTextSize(name)
+    draw.Color( 255,255,255,255 )
+    draw.Text(math.floor(x+((x2-x)/2)-(w/2)), math.floor(y+(h*0.1)),name)
 end
 
 
@@ -246,13 +292,14 @@ local function DrawMenu()
     draw.Color( r,g,b,40 )
     draw.FilledRect(x, y - 15, x + bW, y) -- blue bar
 
-    local string = "Getterhook lua by muqapaszter0081 (bloat text here aaaaaaaaaa)"
+    local string = "Misc Tools Lua By Muqa"
     local w, h = draw.GetTextSize(string)
     draw.Color(255, 255, 255, 255)
-    draw.Text(math.floor(x+(bW/2)-(w/2)), math.floor(y-h), string) -- name
-    --ColorWaveTextEffect(math.floor(x+(bW/2)-(w/2)), math.floor(y-15), string, {255,255,255,255}, {50,50,50,0}, -1)
+    --draw.Text(math.floor(x+(bW/2)-(w/2)), math.floor(y-h), string) -- name
+    ColorWaveTextEffect(math.floor(x+(bW/2)-(w/2)), math.floor(y-15), string, {135, 141, 250,125}, {224, 173, 199,255}, -1)
     --TextInCenter(x, y - 15, x + bW, y, string)
 
+    draw.Color(255,255,255,200)
     local time = os.date("%H:%M")
     w,h = draw.GetTextSize(time)
     draw.Text(x+bW-w-2,y-h,time)
@@ -262,7 +309,7 @@ local function DrawMenu()
     draw.Line(x+bW-5,y+bH-1,x+bW-1,y+bH-5) -- resize window
     draw.Line(x+bW-10,y+bH-1,x+bW-1,y+bH-10)
     draw.Line(x+bW-15,y+bH-1,x+bW-1,y+bH-15)
-    draw.Text(x+bW, y+bH, "w: ".. menu.w.. " | h: ".. menu.h)
+    -- draw.Text(x+bW, y+bH, "w: ".. menu.w.. " | h: ".. menu.h)
     if IsMouseInBounds(x+bW-15,y+bH-15,x+bW,y+bH) and input.IsButtonDown(MOUSE_LEFT) then 
         menu.w = mX-x+10
         menu.h = mY-y+10
@@ -278,8 +325,8 @@ local function DrawMenu()
     -- button  
     local startY = 0
     for i = 1, #buttons do 
-        local b = buttons[i]
-        local w, h = draw.GetTextSize(b.name)
+        local button = buttons[i]
+        local w, h = draw.GetTextSize(button.name)
         local pos = {x+5, y+startY+5, x+85, y+startY+25}
         local clr = {10, 10, 10, 50}
         
@@ -287,17 +334,17 @@ local function DrawMenu()
         if IsMouseInBounds(table.unpack(pos)) and input.IsButtonPressed(MOUSE_LEFT) then 
             clr = {40, 40, 40, 50}
             -- Toggle the button state in the menu.buttons table
-            menu.buttons[b.table] = true
+            menu.buttons[button.table] = true
         else
-            menu.buttons[b.table] = false
+            menu.buttons[button.table] = false
         end
         
         draw.Color(table.unpack(clr))
         draw.FilledRect(table.unpack(pos))
-        draw.Color(45, 45, 45, 255)
+        draw.Color(r, g, b, 40)--45, 45, 45, 255
         draw.OutlinedRect(table.unpack(pos))
         draw.Color(255, 255, 255, 255)
-        TextInCenter(pos[1], pos[2], pos[3], pos[4], b.name)
+        TextInCenter(pos[1], pos[2], pos[3], pos[4], button.name)
         startY = startY + 25
     end
 
@@ -328,6 +375,11 @@ local function DrawMenu()
 
     draw.Color(45, 45, 45, 255)
     draw.Line(x+90,y+1, x+90, y+bH-1)
+
+    draw.Color(200, 200, 200, 50)
+    draw.Text(x+5, y+bH-35, "Config")
+    CFGbutton(x+5, y+bH-20,x+46, y+bH-5,"Load", "cfg_load")
+    CFGbutton(x+48, y+bH-20,x+87, y+bH-5,"Save", "cfg_save")
     x = x + 90
 
     if menu.tabs.tab_1 then
@@ -385,17 +437,693 @@ local function DrawMenu()
         Toggle(x1+5, y1+5,"Enable", "AA_lines")
         Toggle(x1+5, y1+30,"Godly HVH Lines", "AA_lines_alt")
         Slider(x1+5,y1+65,x1+145,y1+75, "AA_lines_size" ,1,100, "AA Lines Size")
+
+        x1,y1 = x+160, y+20
+        Island(x1,y1,x1+150,y1+30,"Info Panel")
+        Toggle(x1+5, y1+5,"Enable", "info_panel")
+
+        y1 = y1+50
+        Island(x1,y1,x1+150,y1+55,"Damage Logger")
+        Toggle(x1+5, y1+5,"Enable", "dmg_logger")
+        Toggle(x1+5, y1+30,"Custom Position", "dmg_logger_custom_pos")
     end
 
-end
+    if menu.tabs.tab_3 then
+        local x1,y1 = x+5, y+20
 
+        Island(x1,y1,x1+150,y1+30,"Infinite Respawn")
+        Toggle(x1+5, y1+5,"Enable", "inf_respawn")
+
+        y1 = y1+50
+        Island(x1,y1,x1+150,y1+80,"Spy Warning")
+        Toggle(x1+5, y1+5,"Enable", "spy_warning")
+        Toggle(x1+5, y1+30,"Call Out", "spy_warning_call_out")
+        Slider(x1+5,y1+65,x1+145,y1+75, "spy_warning_dist" ,100,1000, "Distance For Activation")
+
+        x1,y1 = x+160, y+20
+        Island(x1,y1,x1+150,y1+30,"Fine Shot M8")
+        Toggle(x1+5, y1+5,"Enable", "fine_shot_m8")
+
+        y1 = y1+50
+        Island(x1,y1,x1+150,y1+30,"Autostrafer only on WASD")
+        Toggle(x1+5, y1+5,"Enable", "autostrafe")
+    end
+end
 callbacks.Unregister( "Draw", "awftgybhdunjmiko")
 callbacks.Register( "Draw", "awftgybhdunjmiko", DrawMenu )
+
+
+
+local function CreateCFG(folder_name, table)
+    local success, fullPath = filesystem.CreateDirectory(folder_name)
+    local filepath = tostring(fullPath .. "/config.txt")
+    local file = io.open(filepath, "w")
+    
+    if file then
+        local function serializeTable(tbl, level)
+            level = level or 0
+            local result = string.rep("    ", level) .. "{\n"
+            for key, value in pairs(tbl) do
+                result = result .. string.rep("    ", level + 1)
+                if type(key) == "string" then
+                    result = result .. '["' .. key .. '"] = '
+                else
+                    result = result .. "[" .. key .. "] = "
+                end
+                if type(value) == "table" then
+                    result = result .. serializeTable(value, level + 1) .. ",\n"
+                elseif type(value) == "string" then
+                    result = result .. '"' .. value .. '",\n'
+                else
+                    result = result .. tostring(value) .. ",\n"
+                end
+            end
+            result = result .. string.rep("    ", level) .. "}"
+            return result
+        end
+        
+        local serializedConfig = serializeTable(table)
+        file:write(serializedConfig)
+        file:close()
+    end
+end
+
+local function LoadCFG(folder_name)
+    local success, fullPath = filesystem.CreateDirectory(folder_name)
+    local filepath = tostring(fullPath .. "/config.txt")
+    local file = io.open(filepath, "r")
+    
+    if file then
+        local content = file:read("*a")
+        file:close()
+        local chunk, err = load("return " .. content)
+        if chunk then
+            return chunk()
+        else
+            print("Error loading configuration:", err)
+        end
+    end
+end
+
+local function TextFade(x, y, text_string, startColor, endColor)
+    local startX = 0
+    local numChars = #text_string
+    if numChars > 1 then
+        for i = 1, numChars do
+            local t = (i - 1) / (numChars - 1)
+            local r = math.floor(startColor[1] + (endColor[1] - startColor[1]) * t)
+            local g = math.floor(startColor[2] + (endColor[2] - startColor[2]) * t)
+            local b = math.floor(startColor[3] + (endColor[3] - startColor[3]) * t)
+            local a = math.floor(startColor[4] + (endColor[4] - startColor[4]) * t)
+            draw.Color(r, g, b, a)
+            draw.Text(x + startX, y, text_string:sub(i, i))
+            local width = draw.GetTextSize(text_string:sub(i, i))
+            startX = startX + width
+        end
+    end
+end
+
+local function antiaimCross(localplayer_pos, aa_angle, size)
+    local vwA = engine.GetViewAngles()
+    if not aa_angle then return end
+    local dir = Vector3(math.cos(math.rad(vwA.y + aa_angle)), math.sin(math.rad(vwA.y + aa_angle)), 0)
+    local p = client.WorldToScreen(localplayer_pos)
+    if p ~= nil then
+        local a1 = localplayer_pos + dir * size
+        local a2 = localplayer_pos + dir
+        local a3 = localplayer_pos + dir * (size * 3)
+        local a4 = localplayer_pos + dir * (size * 3)
+        local a5 = localplayer_pos + dir * (size * 4.5)
+        local a6 = localplayer_pos + dir * (size * 5.5)
+        local b1 = client.WorldToScreen(a1)
+        if b1 ~= nil then
+            local pD = Vector3(-dir.y, dir.x, 0)
+            local r = size * 0.75
+            local c1 = a2 + pD * r
+            local c2 = a2 - pD * r 
+            local c3 = a3 + pD * r
+            local c4 = a3 - pD * r
+            local c5 = a4 + pD * (r * 2.5)
+            local c6 = a4 - pD * (r * 2.5)
+            local c7 = a5 + pD * (r * 2.5)
+            local c8 = a5 - pD * (r * 2.5)
+            local c9 = a6 + pD * r
+            local c10 = a6 - pD * r
+            local c11 = a5 + pD * r
+            local c12 = a5 - pD * r
+            local d1 = client.WorldToScreen(c1)
+            local d2 = client.WorldToScreen(c2)
+            local d3 = client.WorldToScreen(c3)
+            local d4 = client.WorldToScreen(c4)
+            local d5 = client.WorldToScreen(c5)
+            local d6 = client.WorldToScreen(c6)
+            local d7 = client.WorldToScreen(c7)
+            local d8 = client.WorldToScreen(c8)
+            local d9 = client.WorldToScreen(c9)
+            local d10 = client.WorldToScreen(c10)
+            local d11 = client.WorldToScreen(c11)
+            local d12 = client.WorldToScreen(c12)
+            if d1 and d2 and d3 and d4 and d5 and d6 and d7 and d8 and d9 and d10 and d11 and d12 then
+                draw.Line(d1[1], d1[2], d2[1], d2[2])
+                draw.Line(d1[1], d1[2], d3[1], d3[2])
+                draw.Line(d2[1], d2[2], d4[1], d4[2])
+                draw.Line(d4[1], d4[2], d6[1], d6[2])
+                draw.Line(d3[1], d3[2], d5[1], d5[2])
+                draw.Line(d5[1], d5[2], d7[1], d7[2])
+                draw.Line(d6[1], d6[2], d8[1], d8[2])
+                draw.Line(d8[1], d8[2],d12[1], d12[2])
+                draw.Line(d7[1], d7[2],d11[1], d11[2])
+                draw.Line(d9[1], d9[2],d11[1], d11[2])
+                draw.Line(d10[1], d10[2],d12[1], d12[2])
+                draw.Line(d9[1], d9[2], d10[1], d10[2])
+            end
+        end
+    end
+end
+
+local function antiaimArrow(localplayer_pos, aa_angle, range)
+    local vwA = engine.GetViewAngles()
+    if not aa_angle then return end
+    local direction = Vector3(math.cos(math.rad(vwA.y + aa_angle)), math.sin(math.rad(vwA.y + aa_angle)), 0)
+    local screenPos = client.WorldToScreen(localplayer_pos)
+    if screenPos ~= nil then
+        local endPoint = localplayer_pos + direction * range
+        local endPoint2 = localplayer_pos + direction * (range * 0.85)
+        local screenPos1 = client.WorldToScreen(endPoint)
+        if screenPos1 ~= nil then
+            draw.Line(screenPos[1], screenPos[2], screenPos1[1], screenPos1[2])
+            local perpendicularDirection = Vector3(-direction.y, direction.x, 0)
+            local perpendicularEndPoint1 = endPoint2 + perpendicularDirection * (range * 0.1) 
+            local perpendicularEndPoint2 = endPoint2 - perpendicularDirection * (range * 0.1) 
+            local screenPos2 = client.WorldToScreen(perpendicularEndPoint1)
+            local screenPos3 = client.WorldToScreen(perpendicularEndPoint2)
+            if screenPos2 ~= nil and screenPos3 ~= nil then
+                draw.Line(screenPos2[1], screenPos2[2], screenPos3[1], screenPos3[2])
+                draw.Line(screenPos1[1], screenPos1[2], screenPos3[1], screenPos3[2])
+                draw.Line(screenPos1[1], screenPos1[2], screenPos2[1], screenPos2[2])
+            end
+        end
+    end
+end
+
+local function IsVisible(player, localPlayer)
+    local me = localPlayer
+    local source = me:GetAbsOrigin() + me:GetPropVector( "localdata", "m_vecViewOffset[0]" );
+    local destination = player:GetAbsOrigin() + Vector3(0,0,75)
+    local trace = engine.TraceLine( source, destination, CONTENTS_SOLID | CONTENTS_GRATE | CONTENTS_MONSTER );
+    if (trace.entity ~= nil) then
+        if trace.entity == player then 
+            return true 
+        end
+    end
+    return false
+end
+
+local logs = {}
+
+local delays = {
+    random_pitch_down = 0,
+    random_pitch_up = 0,
+    random_fakelag = 0,
+    respawnExtend = 0,
+    spy_warning = 0,
+    rotate_dynamic_wait = 0,
+    fine_shot_m8 = 0,
+    rand_invert = 0,
+    rand_spin = 0,
+}
+
+
+local sW,sH = draw.GetScreenSize()
 
 local function NonMenuDraw()
     if input.IsButtonPressed( KEY_END ) or input.IsButtonPressed( KEY_INSERT ) or input.IsButtonPressed( KEY_F11 ) then 
         toggleMenu()
     end
+
+    if menu.buttons.cfg_save then 
+        CreateCFG([[MiscToolsLua]], menu)
+    end
+
+    if menu.buttons.cfg_load then 
+        menu = LoadCFG([[MiscToolsLua]])
+    end
+
+    local localPlayer = entities.GetLocalPlayer()
+    if not localPlayer then goto continue end
+    if menu.toggles.pitch_rand_down then
+        local wait = math.random(1, 10)
+        if (globals.RealTime() > (delays.random_pitch_down + wait / 10)) then
+            gui.SetValue( "Anti Aim - Pitch", math.random(2,3))
+            delays.random_pitch_down = globals.RealTime()
+        end
+    end
+
+    if menu.toggles.pitch_rand_up then
+        local wait2 = math.random(1, 10)
+        if (globals.RealTime() > (delays.random_pitch_up + wait2 / 10)) then
+            local random = math.random(1,2)
+            local random_pitch = 0
+            if random == 1 then 
+                random_pitch = 1
+            else
+                random_pitch = 4
+            end
+            gui.SetValue( "Anti Aim - Pitch", random_pitch)
+            delays.random_pitch_up = globals.RealTime()
+        end
+    end
+
+    if menu.toggles.rotate_dyn_enable then 
+        if (globals.RealTime() > (delays.rotate_dynamic_wait + menu.sliders.rotate_dyn_delay / 1000)) then 
+            menu.toggles.rotate_dyn_switch = not menu.toggles.rotate_dyn_switch
+            delays.rotate_dynamic_wait = globals.RealTime()
+        end
+
+        if menu.toggles.rotate_dyn_switch then 
+            gui.SetValue("Anti aim - custom yaw (fake)", menu.sliders.rotate_dyn_fake1)
+            gui.SetValue("Anti aim - custom yaw (real)", menu.sliders.rotate_dyn_real1)
+        else
+            gui.SetValue("Anti aim - custom yaw (fake)", menu.sliders.rotate_dyn_fake2)
+            gui.SetValue("Anti aim - custom yaw (real)", menu.sliders.rotate_dyn_real2)
+        end
+    end
+
+    if menu.toggles.rand_fakelag then 
+        local random_ticks = math.random(menu.sliders.rand_fakelag_min, menu.sliders.rand_fakelag_max)
+        if globals.RealTime() > (delays.random_fakelag + (gui.GetValue("Fake lag value (ms)") / 1000) ) then
+            random_ticks = random_ticks * 15
+            gui.SetValue("Fake lag value (ms)", random_ticks)
+            delays.random_fakelag = globals.RealTime()
+        end
+    end
+
+    if menu.toggles.inf_respawn then 
+        if not localPlayer:IsAlive() and (globals.RealTime() > (delays.respawnExtend + 2)) then 
+            client.Command("extendfreeze", true)                                             
+            delays.respawnExtend = globals.RealTime()                                             
+        end
+    end
+
+    if menu.toggles.fine_shot_m8 then 
+        if localPlayer:IsAlive() and (globals.RealTime() > (delays.fine_shot_m8 + 2)) then 
+            client.Command( "voicemenu 2 6", true )                                            
+            delays.fine_shot_m8 = globals.RealTime()                                             
+        end
+    end
+
+    if menu.toggles.autostrafe then 
+        if not (input.IsButtonDown( KEY_A ) or input.IsButtonDown( KEY_S ) or input.IsButtonDown( KEY_D ) or input.IsButtonDown( KEY_W )) then
+            gui.SetValue("Auto strafe", "none")
+        else
+            gui.SetValue("Auto strafe", "directional")
+        end
+    end
+
+    if menu.toggles.spy_warning then 
+        local players = entities.FindByClass("CTFPlayer") 
+        draw.SetFont( tahoma_bold )
+        for i, spy in ipairs(players) do
+            if spy:GetPropInt("m_iClass") == 8 then 
+                local spy_pos = spy:GetAbsOrigin()
+                local local_pos = localPlayer:GetAbsOrigin()
+                local distance = vector.Distance(spy_pos, local_pos)
+                if (distance < menu.sliders.spy_warning_dist) and spy:IsAlive() and spy:GetTeamNumber() ~= localPlayer:GetTeamNumber() and not spy:IsDormant() and IsVisible(spy, localPlayer) then
+                    draw.Color(250, 85, 85, 255)
+                    local length, height = draw.GetTextSize( "There Is A Spy Nearby!" )
+                    draw.Text(math.floor((sW * 0.5) - (length * 0.5)), math.floor(sH * 0.6), "There Is A Spy Nearby!")
+                    if menu.toggles.spy_warning_call_out and (globals.RealTime() > (delays.spy_warning + 2.5)) then 
+                        client.Command( "voicemenu 1 1", 1 )
+                        delays.spy_warning = globals.RealTime()
+                    end
+                end
+            end
+        end
+        draw.SetFont( tahoma )
+    end
+
+    if menu.toggles.crosshair_indicators then 
+        draw.SetFont( tahoma_bold )
+        local startW, startH = math.floor(sW / 2), math.floor(sH * 0.52)
+        local r1, g1, b1 = LerpBetweenColors({50,50,50}, {255,255,255}, 3)
+        local r2, g2, b2 = LerpBetweenColors({255,255,255}, {50,50,50}, 1)
+        local startColor = {r1,g1,b1,255}
+        local endColor = {r2,g2,b2,255}
+        local cheatName = "lmaobox"
+        local cW,cH  = draw.GetTextSize(cheatName)
+        TextFade(startW - math.floor(cW / 2), startH, cheatName, startColor, endColor)
+        if warp.GetChargedTicks() ~= 0 and (gui.GetValue("double tap") ~= "none" or gui.GetValue("dash move key") ~= 0) then
+            local LocalWeapon = entities.GetLocalPlayer():GetPropEntity( "m_hActiveWeapon" )
+            if (warp.CanDoubleTap(LocalWeapon)) and ((entities.GetLocalPlayer():GetPropInt( "m_fFlags" )) & FL_ONGROUND) == 1 then 
+            else
+                startColor = {25,25,25,255}
+                endColor = {25,25,25,255}
+            end
+            local curTicks = warp.GetChargedTicks()
+            local maxTicks = 23
+            local percentageTicks = math.floor(curTicks / maxTicks * 100)
+            local Size = math.floor(cW * (curTicks / maxTicks))
+            local pos = {startW - math.floor(cW / 2), startH + cH, startW - math.floor(cW / 2) + Size, startH + cH + 3}
+            draw.Color(table.unpack(startColor))
+            draw.FilledRectFade(pos[1], pos[2], pos[3], pos[4], 255, 0, true)
+            draw.Color(table.unpack(endColor))
+            draw.FilledRectFade(pos[1], pos[2], pos[3], pos[4], 0, 255, true)
+            draw.Color(0,0,0,255)
+            draw.OutlinedRect(startW - math.floor(cW / 2) - 1, startH + cH - 1, startW - math.floor(cW / 2) + Size + 1, startH + cH + 3 + 1)
+        end
+        draw.SetFont( tahoma )
+        local statuses = {}
+        local wpn = localPlayer:GetPropEntity("m_hActiveWeapon")
+            if wpn and localPlayer:IsAlive() then
+                local critChance = wpn:GetCritChance()
+                local dmgStats = wpn:GetWeaponDamageStats()
+                local totalDmg = dmgStats["total"]
+                local criticalDmg = dmgStats["critical"]
+                local cmpCritChance = critChance + 0.1
+                if cmpCritChance > wpn:CalcObservedCritChance() then
+                else
+                    local requiredTotalDamage = (criticalDmg * (2.0 * cmpCritChance + 1.0)) / cmpCritChance / 3.0
+                    local requiredDamage = requiredTotalDamage - totalDmg
+                    table.insert(statuses, {"crit ban: ".. math.floor(requiredDamage), {232, 183, 49, 255}})
+                end
+            end
+        local startY = cH + 5
+        for _, v in ipairs(statuses) do 
+            local w, h = draw.GetTextSize(v[1])
+            draw.Color(table.unpack(v[2]))
+            draw.Text(math.floor(startW - (w/2)), startH + startY, v[1] )
+            startY = startY + h
+        end
+    end
+
+    if menu.toggles.info_panel then 
+
+        local info = {}
+
+        local x, y = menu.info_panel.x, menu.info_panel.y
+        local bW, bH = 150, 25 -- box width , box height
+
+        local mX, mY = input.GetMousePos()[1], input.GetMousePos()[2] -- mouse position
+
+        if Lbox_Menu_Open and mX >= x and mX <= x + bW and mY >= y and mY <= y + bH then
+
+            if not input.IsButtonDown(MOUSE_LEFT) then
+                menu.info_panel.rX = ((mX - x) / bW)
+                menu.info_panel.rY = ((mY - y) / bH)
+            else
+                menu.info_panel.x = mX - f(bW * menu.info_panel.rX)
+                menu.info_panel.y = mY - f(bH * menu.info_panel.rY)
+            end
+        end
+    
+
+        draw.Color(40, 40, 40, 255)
+        --draw.FilledRect(x, y, x + bW, y + bH)
+        draw.FilledRectFade(x, y, x + bW, y + bH, 255, 0, false)
+        
+        draw.Color(140, 147, 255, 255)
+        draw.Line(x, y, x + bW, y)
+        --draw.OutlinedRect(x, y, x + bW, y + bH)
+
+        draw.FilledRectFade(x, y, x+1, y + bH, 255, 0, false)
+        draw.FilledRectFade(x+bW-1, y, x+bW, y + bH, 255, 0, false)
+
+        --draw.FilledRectFade(x, y, x + bW, f(y + bH/2), 0, 125, false)
+        --draw.FilledRectFade(x, f(y + bH/2), x + bW, y + bH, 125, 0, false)
+
+        -- draw.Color(29, 189, 165, 255)
+        -- draw.OutlinedRect(x, y, x + bW, y + bH)
+
+        draw.Color(225, 225, 225, 255)
+        draw.SetFont( tahoma_bold )
+        local name = "Info Panel"
+        local tW, tH = draw.GetTextSize(name) -- text width, text height
+        -- draw.Text(f(x+(bW/2)-(tW/2)), f(y+(bH/2)-(tH/2)), name)
+        -- local r1, g1, b1 = RGBRainbow(1)
+        -- local r2, g2, b2 = RGBRainbow(1.5)
+    
+        -- local startColor = {r1, g1, b1,255} 
+        -- local endColor = {r2, g2, b2,255}  
+
+        local startColor = {255, 255, 255,255} 
+        local endColor = {60, 60, 60,255}  
+        
+        ColorWaveTextEffect(f(x+(bW/2)-(tW/2)), f(y+(bH/2)-(tH/2)), name, startColor, endColor, -3)
+        draw.SetFont( tahoma )
+
+        --[[ statuses start ]]--
+        if gui.GetValue("fake lag") ~= 0 then 
+            table.insert(info, {"Fake Lag: ".. f((gui.GetValue("fake lag value (ms)") + 15) / 15).. " ticks", {35, 237, 255, 255}})
+        end
+
+        local function GetOffset()
+            local real = gui.GetValue("anti aim - custom yaw (real)")
+            local fake = gui.GetValue("anti aim - custom yaw (fake)")
+            -- Calculate the absolute difference between real and fake values
+            local offset = math.abs(real - fake)
+            -- Check if the smaller desync value is greater than 180
+            if offset > 180 then
+                -- Return the smaller of the two possible desync values
+                return 360 - offset
+            else
+                -- Return the calculated desync value
+                return offset
+            end
+        end
+
+        if gui.GetValue( "Anti Aim" ) ~= 0  then
+            table.insert(info, {"Anti Aim", {255, 126, 126, 255}})
+        end
+        
+        if gui.GetValue( "Anti Aim" ) ~= 0 and gui.GetValue( "anti aim - yaw (real)" ) == "custom" and gui.GetValue( "anti aim - yaw (fake)" ) == "custom" then
+            table.insert(info, {"Yaw Offset: ".. GetOffset().. "degrees", {255, 184, 184, 255}})
+        end
+
+        if gui.GetValue( "Aim bot" ) ~= 0 then -- aimbot
+            local aimbot_key = gui.GetValue( "Aim key" )
+            local aimbot_mode = gui.GetValue( "Aim key mode" )
+            if (input.IsButtonDown( aimbot_key )) and (aimbot_mode == "hold-to-use") then 
+                table.insert(info, {"Aimbot: Held", {255, 204, 0, 255}} )
+            elseif aimbot_key == 0 then 
+                table.insert(info, {"Aimbot: Always On", {255, 204, 0, 255}} )
+            elseif (aimbot_mode == "press-to-toggle") then
+                table.insert(info, {"Aimbot: Toggled", {255, 204, 0, 255}} )
+            end
+        end
+
+        if warp.GetChargedTicks() ~= 0 and (gui.GetValue("double tap") ~= "none" or gui.GetValue("dash move key") ~= 0) then -- doubletap
+            local LocalWeapon = entities.GetLocalPlayer():GetPropEntity( "m_hActiveWeapon" )
+            if (warp.CanDoubleTap(LocalWeapon)) and ((entities.GetLocalPlayer():GetPropInt( "m_fFlags" )) & FL_ONGROUND) == 1 then 
+                table.insert(info, {"Doubletap: ".. warp.GetChargedTicks().. "/23", {255, 0, 179, 255}})
+            else
+                table.insert(info, {"Doubletap: ".. warp.GetChargedTicks().. "/23", {56, 0, 40, 255}})
+            end
+        end
+
+        if gui.GetValue( "Fake Latency" ) == 1 then -- fake latency
+            table.insert(info, {"Fake latency: ".. (gui.GetValue( "Fake latency value (ms)" ) / 1000).. " seconds", {153, 255, 0, 255}})
+        end
+
+        if gui.GetValue( "Thirdperson" ) ~= 0 then -- thirdperson
+            if gui.GetValue( "thirdperson key" ) ~= 0 then
+                table.insert(info, {"Thirdperson: Toggled", {175, 175, 175, 255}})
+            else 
+                table.insert(info, {"Thirdperson: On", {175, 175, 175, 255}})
+            end
+        end
+        --[[ statuses end ]]--
+
+        local startY = 0
+        for _, v in ipairs(info) do 
+            local w, h = draw.GetTextSize(v[1])
+
+            -- draw.Color(99, 110, 255, 255)
+            -- draw.OutlinedRect(x - 1, y + bH + startY, x + bW + 1, y + bH + startY + 15 + 1)
+
+            -- draw.Color(46, 46, 46,255)
+            -- draw.FilledRect(x, y + bH + startY, x + bW, y + bH + startY + 15)
+
+
+            --draw.Color( table.unpack(v[2]) )
+            --draw.Text(x + 1, y + bH + 1 + startY, v[1])
+            local startColor = v[2]
+            local endColor = {f(v[2][1] * 0.4), f(v[2][2] * 0.4), f(v[2][3] * 0.4), 255}
+            -- local endColor = {f(255 - v[2][1]), f(255 - v[2][2]), f(255 - v[2][3]), 255}
+            draw.Color(table.unpack(v[2]))
+            draw.Text(x + 1, y + bH + 1 + startY, v[1])
+            startY = startY + h
+        end
+    end
+
+    if menu.toggles.AA_lines then 
+
+        local yaws_real = {
+            ["left"] = 90,
+            ["right"] = -90,
+            ["back"] = 180, 
+            ["forward"] = 0,
+            ["custom"] = gui.GetValue("Anti Aim - Custom Yaw (Real)")
+        }
+
+        local yaws_fake = {
+            ["left"] = 90,
+            ["right"] = -90,
+            ["back"] = 180, 
+            ["forward"] = 0,
+            ["custom"] = gui.GetValue("Anti Aim - Custom Yaw (Fake)")
+        }
+
+        local center = localPlayer:GetAbsOrigin()
+        local range = 100
+        local ang = engine.GetViewAngles()
+        local size = menu.sliders.AA_lines_size
+        if not menu.toggles.AA_lines_alt then 
+            draw.Color(255, 0, 0, 255)
+            antiaimArrow(localPlayer:GetAbsOrigin(), yaws_fake[gui.GetValue("Anti aim - yaw (fake)")], size)
+            draw.Color(0, 255, 0, 255)
+            antiaimArrow(localPlayer:GetAbsOrigin(), yaws_real[gui.GetValue("Anti aim - yaw (real)")], size)
+        else
+            draw.Color(255, 0, 0, 255)
+            antiaimCross(localPlayer:GetAbsOrigin(), yaws_fake[gui.GetValue("Anti aim - yaw (fake)")], size)
+            draw.Color(0, 255, 0, 255)
+            antiaimCross(localPlayer:GetAbsOrigin(), yaws_real[gui.GetValue("Anti aim - yaw (real)")], size)
+        end
+    end
+
+    if menu.toggles.dmg_logger then 
+        local startY = 0
+        local currentTime = globals.RealTime()
+        local startW, startH
+        local x, y = menu.dmg_logger.x, menu.dmg_logger.y
+        local bW, bH = 100, 20
+        local mX, mY = input.GetMousePos()[1], input.GetMousePos()[2] -- mouse position
+        if not menu.toggles.dmg_logger_custom_pos then
+            startW, startH = math.floor(sW / 2), math.floor(sH * 0.6)
+        else
+            if Lbox_Menu_Open and mX >= x and mX <= x + bW and mY >= y and mY <= y + bH then
+
+                if not input.IsButtonDown(MOUSE_LEFT) then
+                    menu.dmg_logger.rX = ((mX - x) / bW)
+                    menu.dmg_logger.rY = ((mY - y) / bH)
+                else
+                    menu.dmg_logger.x = mX - math.floor(bW * menu.dmg_logger.rX)
+                    menu.dmg_logger.y = mY - math.floor(bH * menu.dmg_logger.rY)
+                end
+            end
+            if Lbox_Menu_Open then 
+                draw.Color(41, 41, 41, 225)
+                draw.FilledRect(x, y, x + bW, y + bH)
+                local string = "DMG Log Position"
+                local w, h = draw.GetTextSize(string)
+                draw.Color(255, 255, 255, 255)
+                draw.Text(math.floor(x+(bW/2)-(w/2)), math.floor(y+(bH/2)-(h/2)), string)
+            end
+            startW, startH = x + math.floor(bW/2), y + bH
+        end
+        local time = 4
+        for i = #logs, 1, -1 do 
+            local l = logs[i]
+            local logTime = l.time or currentTime
+            local elapsedTime = currentTime - logTime
+            if elapsedTime >= time then
+                table.remove(logs, i)
+            else
+                local alpha = math.max(255 - math.floor(elapsedTime * (255 / time)), 0)
+                local r1, g1, b1 = LerpBetweenColors({255, 93, 93}, {255,255,255}, l.r1)
+                local r2, g2, b2 = LerpBetweenColors({255,255,255}, {255, 93, 93}, l.r2)
+                local startColor = {r1,g1,b1,alpha}
+                local endColor = {r2,g2,b2,alpha}
+                -- draw.Color(255, 255, 255, alpha)
+                -- local text = tostring(l.player .. " damage: " .. l.dmg .. " health: " .. l.health)
+                local text = tostring("hit ".. l.player.. " for ".. l.dmg.. " dmg")
+                local width, height = draw.GetTextSize(text)
+                -- draw.Text(500, 500 + startY, text)
+                TextFade(startW - math.floor(width / 2), startH + startY, text, startColor, endColor)
+                startY = startY + height
+            end
+        end
+    end
+    ::continue::
+end
+callbacks.Register( "Draw", "awbtyngfuimhdj", NonMenuDraw )
+
+local function dmgLogger(event)
+
+    if (event:GetName() == 'player_hurt' ) and menu.toggles.dmg_logger then
+  
+        local localPlayer = entities.GetLocalPlayer();
+        local victim = entities.GetByUserID(event:GetInt("userid"))
+        local health = event:GetInt("health")
+        local attacker = entities.GetByUserID(event:GetInt("attacker"))
+        local damage = event:GetInt("damageamount")
+  
+        if (attacker == nil or localPlayer:GetIndex() ~= attacker:GetIndex()) then
+            return
+        end
+  
+        table.insert(logs, {player = victim:GetName(), dmg = damage, health = health, time = globals.RealTime(), r1 = math.random(1,5), r2 = math.random(1,5)})
+        -- client.ChatPrintf( "\x078c75ff [spaghetti.vip]" .. "\x01 Hit " ..  "\x07d6b618" .. victim:GetName() .. " \x01for " .. "\x07d6b618" .. damage .. "\x01 HP. " .. "HP left " .. "\x07d6b618" .. health .. "\x01 HP")
+    end
 end
 
-callbacks.Register( "Draw", "awbtyngfuimhdj", NonMenuDraw )
+callbacks.Unregister("FireGameEvent", "asdawdaw")
+callbacks.Register( "FireGameEvent", "asdawdaw", dmgLogger )
+
+local function CreateMove(cmd)
+
+    if menu.toggles.AA_spin_enable then 
+        local add = menu.sliders.AA_spin_speed
+        local function a(x)
+            if x >= 180 then
+                x = -180
+            elseif x <= -180 then
+                x = 180
+            end
+            return x
+        end
+        if menu.toggles.AA_spin_rand_speed and globals.RealTime() > delays.rand_spin + 0.2 then 
+            menu.sliders.AA_spin_speed = math.random(1, 10)
+            delays.rand_spin = globals.RealTime()
+        end
+        if menu.toggles.AA_spin_rand_invert and globals.RealTime() > delays.rand_invert + 0.2 then 
+            menu.toggles.AA_spin_inverted = (math.random(0,1)==1)
+            delays.rand_invert = globals.RealTime()
+        end
+        if menu.toggles.AA_spin_inverted then
+            add = -add
+        end
+        gui.SetValue( "Anti Aim - Custom Yaw (real)", a(gui.GetValue( "Anti Aim - Custom Yaw (real)" ) + add))
+    end
+
+
+    if menu.toggles.leg_jitter then
+        local value = menu.sliders.leg_jitter_value
+        if (cmd.sidemove == 0) then
+            if cmd.command_number % 2 == 0 then
+                cmd:SetSideMove(value / 10)
+            else
+                cmd:SetSideMove(-value / 10)
+            end
+        elseif (cmd.forwardmove == 0) then
+            if cmd.command_number % 2 == 0 then
+                cmd:SetForwardMove(value / 10)
+            else
+                cmd:SetForwardMove(-value / 10)
+            end
+        end
+    end
+end
+callbacks.Register( "CreateMove", "awfgtghydui", CreateMove )
+
+local lines = {"⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠴⠤⠤⠴⠄⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⣠⠄⠒⠉⠀⠀⠀⠀⠀⠀⠀⠀⠁⠃⠆⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⢀⡜⠁⠀⠀⠀⢠⡄⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠑⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⢈⠁⠀⠀⠠⣿⠿⡟⣀⡹⠆⡿⣃⣰⣆⣤⣀⠀⠀⠹⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⣼⠀⠀⢀⣀⣀⣀⣀⡈⠁⠙⠁⠘⠃⠡⠽⡵⢚⠱⠂⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⢐⣢⣤⣵⡄⢀⠀⢀⢈⣉⠉⠉⠒⠤⠀⠿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠘⡇⠀⠀⠀⠀⠀⠉⠉⠁⠁⠈⠀⠸⢖⣿⣿⣷⠀⠀⢰⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⢀⠃⠀⡄⠀⠈⠉⠀⠀⠀⢴⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⢈⣇⠀⠀⠀⠀⠀⠀⠀⢰⠉⠀⠀⠱⠀⠀⠀⠀⠀⢠⡄⠀⠀⠀⠀⠀⣀⠔⠒⢒⡩⠃⠀⠀⠀loaded godmode lua⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⣴⣿⣤⢀⠀⠀⠀⠀⠀⠈⠓⠒⠢⠔⠀⠀⠀⠀⠀⣶⠤⠄⠒⠒⠉⠁⠀⠀⠀⢸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⡄⠤⠒⠈⠈⣿⣿⣽⣦⠀⢀⢀⠰⢰⣀⣲⣿⡐⣤⠀⠀⢠⡾⠃⠀⠀⠀⠀⠀⠀⠀⣀⡄⣠⣵⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠘⠏⢿⣿⡁⢐⠶⠈⣰⣿⣿⣿⣿⣷⢈⣣⢰⡞⠀⠀⠀⠀⠀⠀⢀⡴⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠈⢿⣿⣍⠀⠀⠸⣿⣿⣿⣿⠃⢈⣿⡎⠁⠀⠀⠀⠀⣠⠞⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠈⢙⣿⣆⠀⠀⠈⠛⠛⢋⢰⡼⠁⠁⠀⠀⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠚⣷⣧⣷⣤⡶⠎⠛⠁⠀⠀⠀⢀⡤⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠈⠁⠀⠀⠀⠀⠀⠠⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀","⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"}
+local clr1 = {115, 119, 255}
+local clr2 = {224, 173, 199}
+for i = 1, #lines do
+    local t = i / #lines
+    local clr = {
+        math.floor(clr1[1] + (clr2[1] - clr1[1]) * t),
+        math.floor(clr1[2] + (clr2[2] - clr1[2]) * t),
+        math.floor(clr1[3] + (clr2[3] - clr1[3]) * t)
+    }
+    printc(clr[1], clr[2], clr[3], 255, lines[i])
+end
