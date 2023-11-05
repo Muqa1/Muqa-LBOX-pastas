@@ -3,7 +3,7 @@ local menu = {
     y = 500,
 
     w = 405,
-    h = 330,
+    h = 365,
 
     rX = 0,
     rY = 0,
@@ -62,6 +62,13 @@ local menu = {
         autostrafe = false,
 
         smooth_on_spec = false,
+
+        shoot_bombs = false,
+        shoot_bombs_silent = false,
+        shoot_bombs_silent_preventDMG = false,
+        shoot_bombs_esp_enable = false,
+        shoot_bombs_esp_name = false,
+        shoot_bombs_esp_dist = false,
     },
 
     sliders = {
@@ -81,6 +88,8 @@ local menu = {
         AA_lines_size = 20,
 
         spy_warning_dist = 230,
+
+        shoot_bombs_dist = 500,
 
     },
 
@@ -241,6 +250,20 @@ local function CFGbutton(x,y,x2,y2,name,button)
     draw.Text(math.floor(x+((x2-x)/2)-(w/2)), math.floor(y+(h*0.1)),name)
 end
 
+local function NotificationBox(x,y,string,alphaProcent)
+    local r,g,b = LerpBetweenColors({135, 141, 250}, {196, 147, 165}, 1)
+    string = "Notification: ".. string
+    local w,h = draw.GetTextSize(string)
+    local padding = 5
+    draw.Color(r,g,b,f(50*alphaProcent))
+    draw.FilledRect(x-padding,y-padding,x+w+padding,y+h+padding)
+    draw.Color(r, g, b, f(255*alphaProcent))
+    draw.OutlinedRect(x-padding, y-padding, x+w+padding,y+h+padding)
+    draw.Color(255,255,255,f(255*alphaProcent))
+    draw.Text(x,y,string)
+end
+
+local notifications = {} 
 
 local lastToggleTime = 0
 local Lbox_Menu_Open = true
@@ -252,17 +275,14 @@ local function toggleMenu()
     end
 end
 
+local IsDragging = false
+local IsDraggingDMGLOG = false
+
 local buttons = {
     [1] = {name="Anti Aim", table="antiaim"},
     [2] = {name="Visuals", table="visuals"},
     [3] = {name="Misc", table="misc"},
     [4] = {name="Cfg", table="cfg"}
-}
-
-local left_islands = {
-    [1] = {
-        name="Island 1",
-    }
 }
 
 local function DrawMenu()
@@ -272,16 +292,28 @@ local function DrawMenu()
     local x, y = menu.x, menu.y
     local bW, bH = menu.w, menu.h
     local mX, mY = input.GetMousePos()[1], input.GetMousePos()[2]
-
-    if IsMouseInBounds(x, y - 15, x + bW, y) then
-        if not input.IsButtonDown(MOUSE_LEFT) then
-            menu.rX = ((mX - x) / bW)
-            menu.rY = ((mY - y) / 15)
-        else
+    
+    if IsDragging then
+        if input.IsButtonDown(MOUSE_LEFT) then
             menu.x = mX - math.floor(bW * menu.rX)
             menu.y = mY - math.floor(15 * menu.rY)
+        else
+            IsDragging = false
+        end
+    else
+        if IsMouseInBounds(x, y - 15, x + bW, y) then
+            if not input.IsButtonDown(MOUSE_LEFT) then
+                menu.rX = ((mX - x) / bW)
+                menu.rY = ((mY - y) / 15)
+            else
+                menu.x = mX - math.floor(bW * menu.rX)
+                menu.y = mY - math.floor(15 * menu.rY)
+                IsDragging = true
+            end
         end
     end
+    
+    
 
 
     draw.Color( 30, 30, 30, 255 )
@@ -319,8 +351,8 @@ local function DrawMenu()
         if menu.w < 405 then 
             menu.w = 405
         end
-        if menu.h < 330 then 
-            menu.h = 330
+        if menu.h < 365 then 
+            menu.h = 365
         end
     end
 
@@ -463,6 +495,16 @@ local function DrawMenu()
         Toggle(x1+5, y1+5,"Enable", "spy_warning")
         Toggle(x1+5, y1+30,"Call Out", "spy_warning_call_out")
         Slider(x1+5,y1+65,x1+145,y1+75, "spy_warning_dist" ,100,1000, "Distance For Activation")
+        y1 = y1+100
+        Island(x1,y1,x1+150,y1+190,"Shoot Bombs")
+        Toggle(x1+5, y1+5,"Enable", "shoot_bombs")
+        Toggle(x1+5, y1+30,"Silent Aim", "shoot_bombs_silent")
+        Slider(x1+5,y1+65,x1+145,y1+75, "shoot_bombs_dist" ,350,1000, "Max Dist")
+        Toggle(x1+5, y1+80,"Prevent Self Damage", "shoot_bombs_silent_preventDMG")
+        y1 = y1+100
+        Toggle(x1+5, y1+15,"Bomb ESP Enable", "shoot_bombs_esp_enable")
+        Toggle(x1+5, y1+40,"Bomb ESP Name", "shoot_bombs_esp_name")
+        Toggle(x1+5, y1+65,"Bomb ESP Dist", "shoot_bombs_esp_dist")
 
         x1,y1 = x+160, y+20
         Island(x1,y1,x1+150,y1+30,"Fine Shot M8")
@@ -688,13 +730,39 @@ local function NonMenuDraw()
         toggleMenu()
     end
 
+    draw.SetFont(tahoma_bold)
+
+    local notif_startY = 0
+    local time = 4
+    local currentTime = globals.CurTime()
+    local seenNotifications = {}
+    for i = #notifications, 1, -1 do 
+        local notif = notifications[i]
+        local logTime = notif.time or currentTime
+        local elapsedTime = currentTime - logTime
+        if not seenNotifications[notif.text] then
+            if elapsedTime >= time then
+                table.remove(notifications, i)
+            else
+                NotificationBox(10, 10 + notif_startY, notif.text, 1 - (elapsedTime / time))
+                notif_startY = notif_startY + 30
+            end
+            seenNotifications[notif.text] = true
+        else
+            table.remove(notifications, i)
+        end
+    end
+    
+
     if menu.buttons.cfg_save then 
         CreateCFG([[MiscToolsLua]], menu)
+        table.insert(notifications, 1, {time = globals.CurTime(), text = "Saved Config!"})
     end
     
 
     if menu.buttons.cfg_load then 
         menu = LoadCFG([[MiscToolsLua]])
+        table.insert(notifications, 1, {time = globals.CurTime(), text = "Loaded Config!"})
     end
 
     local localPlayer = entities.GetLocalPlayer()
@@ -1033,17 +1101,26 @@ local function NonMenuDraw()
         if not menu.toggles.dmg_logger_custom_pos then
             startW, startH = math.floor(sW / 2), math.floor(sH * 0.6)
         else
-            if Lbox_Menu_Open and mX >= x and mX <= x + bW and mY >= y and mY <= y + bH then
-
-                if not input.IsButtonDown(MOUSE_LEFT) then
-                    menu.dmg_logger.rX = ((mX - x) / bW)
-                    menu.dmg_logger.rY = ((mY - y) / bH)
+            if Lbox_Menu_Open then
+                if IsDraggingDMGLOG then
+                    if input.IsButtonDown(MOUSE_LEFT) then
+                        menu.dmg_logger.x = mX - math.floor(bW * menu.dmg_logger.rX)
+                        menu.dmg_logger.y = mY - math.floor(bH * menu.dmg_logger.rY)
+                    else
+                        IsDraggingDMGLOG = false
+                    end
                 else
-                    menu.dmg_logger.x = mX - math.floor(bW * menu.dmg_logger.rX)
-                    menu.dmg_logger.y = mY - math.floor(bH * menu.dmg_logger.rY)
+                    if IsMouseInBounds(x, y, x + bW, y + bH) then
+                        if not input.IsButtonDown(MOUSE_LEFT) then
+                            menu.dmg_logger.rX = ((mX - x) / bW)
+                            menu.dmg_logger.rY = ((mY - y) / bH)
+                        else
+                            menu.dmg_logger.x = mX - math.floor(bW * menu.dmg_logger.rX)
+                            menu.dmg_logger.y = mY - math.floor(bH * menu.dmg_logger.rY)
+                            IsDraggingDMGLOG = true
+                        end
+                    end
                 end
-            end
-            if Lbox_Menu_Open then 
                 draw.Color(r, g, b, 50)
                 draw.FilledRect(x, y, x + bW, y + bH)
                 draw.Color(r, g, b, 255)
@@ -1078,6 +1155,36 @@ local function NonMenuDraw()
             end
         end
     end
+
+    if menu.toggles.shoot_bombs_esp_enable then 
+        draw.SetFont( tahoma )
+        local bombs = entities.FindByClass( "CTFGenericBomb" )
+        if #bombs == 0 then 
+            bombs = entities.FindByClass( "CTFPumpkinBomb" )
+        end
+        for i, b in pairs(bombs) do
+            if not b:IsDormant() then
+                local pos = b:GetAbsOrigin()
+                pos = client.WorldToScreen( pos )
+                if pos then 
+                    draw.Color(255,255,255,255)
+                    local offset = 0
+                    if menu.toggles.shoot_bombs_esp_name then
+                        local string = "bomb"
+                        local w, h = draw.GetTextSize(string)
+                        draw.Text(pos[1]-f(w/2), pos[2]-f(h/2), string)
+                        offset = offset + h
+                    end
+                    if menu.toggles.shoot_bombs_esp_dist then 
+                        local dist = f(vector.Distance( localPlayer:GetAbsOrigin(), b:GetAbsOrigin()))
+                        local string = string.format("[%s Hu]", dist)
+                        local w, h = draw.GetTextSize(string)
+                        draw.Text(pos[1]-f(w/2), pos[2]-f(h/2)+offset, string)
+                    end
+                end
+            end
+        end
+    end
     ::continue::
 end
 callbacks.Register( "Draw", "awbtyngfuimhdj", NonMenuDraw )
@@ -1104,12 +1211,38 @@ end
 callbacks.Unregister("FireGameEvent", "asdawdaw")
 callbacks.Register( "FireGameEvent", "asdawdaw", dmgLogger )
 
+local function PositionAngles(source, dest)
+    local function isNaN(x) return x ~= x end
+    local M_RADPI = 180 / math.pi
+    local delta = source - dest
+    local pitch = math.atan(delta.z / delta:Length2D()) * M_RADPI
+    local yaw = math.atan(delta.y / delta.x) * M_RADPI
+    if delta.x >= 0 then
+        yaw = yaw + 180
+    end
+    if isNaN(pitch) then pitch = 0 end
+    if isNaN(yaw) then yaw = 0 end
+    return EulerAngles(pitch, yaw, 0)
+end
+
+local function IsVisible(localPlayer, entity)
+    local source = localPlayer:GetAbsOrigin() + localPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" );
+    local destination = entity:GetAbsOrigin() + Vector3(0,0,15)
+    local trace = engine.TraceLine( source, destination, CONTENTS_SOLID | CONTENTS_GRATE | CONTENTS_MONSTER );
+    if (trace.entity ~= nil) then
+        if trace.entity == entity then 
+            return true 
+        end
+    end
+    return false
+end
+
 local AimModeBefore1 = nil
 local AimModeBefore2 = nil
 local AimModeTick = 0
 
 local function CreateMove(cmd)
-
+    local lPlayer = entities.GetLocalPlayer()
     if menu.toggles.AA_spin_enable then 
         local add = menu.sliders.AA_spin_speed
         local function a(x)
@@ -1184,6 +1317,31 @@ local function CreateMove(cmd)
             end
         end
     end
+
+    if menu.toggles.shoot_bombs then 
+        local bombs = entities.FindByClass( "CTFGenericBomb" )
+        local isPumpkin = false
+        if #bombs == 0 then 
+            bombs = entities.FindByClass( "CTFPumpkinBomb" )
+            isPumpkin = true
+        end
+        local safe_dist
+        if isPumpkin then 
+            safe_dist = 350
+        else
+            safe_dist = 300
+        end
+        for i, b in pairs(bombs) do
+            if not b:IsDormant() and IsVisible(lPlayer, b) and (vector.Distance(lPlayer:GetAbsOrigin(), b:GetAbsOrigin()) < menu.sliders.shoot_bombs_dist) and (not menu.toggles.shoot_bombs_silent_preventDMG or (vector.Distance(lPlayer:GetAbsOrigin(), b:GetAbsOrigin()) > safe_dist)) and lPlayer:GetPropEntity( "m_hActiveWeapon" ) ~= lPlayer:GetEntityForLoadoutSlot( 2 ) then
+                if menu.toggles.shoot_bombs_silent then
+                    cmd:SetViewAngles( PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), b:GetAbsOrigin()+Vector3(0,0,15)):Unpack())
+                else
+                    engine.SetViewAngles(PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), b:GetAbsOrigin()+Vector3(0,0,15)))
+                end
+                cmd:SetButtons( cmd.buttons | IN_ATTACK )
+            end
+        end
+    end
 end
 callbacks.Register( "CreateMove", "awfgtghydui", CreateMove )
 
@@ -1208,3 +1366,5 @@ local function OnLoad()
 end
 callbacks.Unregister( "CreateMove", "awjkudl9i0" )
 callbacks.Register( "CreateMove", "awjkudl9i0", OnLoad )
+
+table.insert(notifications, 1, {time = globals.CurTime(), text = "Loaded Lua!"})
