@@ -1158,32 +1158,33 @@ local function NonMenuDraw()
 
     if menu.toggles.shoot_bombs_esp_enable then 
         draw.SetFont( tahoma )
-        local bombs = entities.FindByClass( "CTFGenericBomb" )
-        if #bombs == 0 then 
-            bombs = entities.FindByClass( "CTFPumpkinBomb" )
-        end
-        for i, b in pairs(bombs) do
-            if not b:IsDormant() then
-                local pos = b:GetAbsOrigin()
-                pos = client.WorldToScreen( pos )
-                if pos then 
-                    draw.Color(255,255,255,255)
-                    local offset = 0
-                    if menu.toggles.shoot_bombs_esp_name then
-                        local string = "bomb"
-                        local w, h = draw.GetTextSize(string)
-                        draw.Text(pos[1]-f(w/2), pos[2]-f(h/2), string)
-                        offset = offset + h
-                    end
-                    if menu.toggles.shoot_bombs_esp_dist then 
-                        local dist = f(vector.Distance( localPlayer:GetAbsOrigin(), b:GetAbsOrigin()))
-                        local string = string.format("[%s Hu]", dist)
-                        local w, h = draw.GetTextSize(string)
-                        draw.Text(pos[1]-f(w/2), pos[2]-f(h/2)+offset, string)
+        local function runBombEsp(className)
+            local bombs = entities.FindByClass( className )
+            for i, b in pairs(bombs) do
+                if not b:IsDormant() then
+                    local pos = b:GetAbsOrigin()
+                    pos = client.WorldToScreen( pos )
+                    if pos then 
+                        draw.Color(255,255,255,255)
+                        local offset = 0
+                        if menu.toggles.shoot_bombs_esp_name then
+                            local string = "bomb"
+                            local w, h = draw.GetTextSize(string)
+                            draw.Text(pos[1]-f(w/2), pos[2]-f(h/2), string)
+                            offset = offset + h
+                        end
+                        if menu.toggles.shoot_bombs_esp_dist then 
+                            local dist = f(vector.Distance( localPlayer:GetAbsOrigin(), b:GetAbsOrigin()))
+                            local string = string.format("[%s Hu]", dist)
+                            local w, h = draw.GetTextSize(string)
+                            draw.Text(pos[1]-f(w/2), pos[2]-f(h/2)+offset, string)
+                        end
                     end
                 end
             end
         end
+        runBombEsp("CTFGenericBomb")
+        runBombEsp("CTFPumpkinBomb")
     end
     ::continue::
 end
@@ -1319,28 +1320,21 @@ local function CreateMove(cmd)
     end
 
     if menu.toggles.shoot_bombs then 
-        local bombs = entities.FindByClass( "CTFGenericBomb" )
-        local isPumpkin = false
-        if #bombs == 0 then 
-            bombs = entities.FindByClass( "CTFPumpkinBomb" )
-            isPumpkin = true
-        end
-        local safe_dist
-        if isPumpkin then 
-            safe_dist = 350
-        else
-            safe_dist = 300
-        end
-        for i, b in pairs(bombs) do
-            if not b:IsDormant() and IsVisible(lPlayer, b) and (vector.Distance(lPlayer:GetAbsOrigin(), b:GetAbsOrigin()) < menu.sliders.shoot_bombs_dist) and (not menu.toggles.shoot_bombs_silent_preventDMG or (vector.Distance(lPlayer:GetAbsOrigin(), b:GetAbsOrigin()) > safe_dist)) and lPlayer:GetPropEntity( "m_hActiveWeapon" ) ~= lPlayer:GetEntityForLoadoutSlot( 2 ) then
-                if menu.toggles.shoot_bombs_silent then
-                    cmd:SetViewAngles( PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), b:GetAbsOrigin()+Vector3(0,0,15)):Unpack())
-                else
-                    engine.SetViewAngles(PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), b:GetAbsOrigin()+Vector3(0,0,15)))
+        local function runAntiBomber(classname, safe_dist)
+            local bombs = entities.FindByClass( classname )
+            for i, b in pairs(bombs) do
+                if not b:IsDormant() and IsVisible(lPlayer, b) and (vector.Distance(lPlayer:GetAbsOrigin(), b:GetAbsOrigin()) < menu.sliders.shoot_bombs_dist) and (not menu.toggles.shoot_bombs_silent_preventDMG or (vector.Distance(lPlayer:GetAbsOrigin(), b:GetAbsOrigin()) > safe_dist)) and lPlayer:GetPropEntity( "m_hActiveWeapon" ) ~= lPlayer:GetEntityForLoadoutSlot( 2 ) then
+                    if menu.toggles.shoot_bombs_silent then
+                        cmd:SetViewAngles( PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), b:GetAbsOrigin()+Vector3(0,0,15)):Unpack())
+                    else
+                        engine.SetViewAngles(PositionAngles(lPlayer:GetAbsOrigin() + lPlayer:GetPropVector( "localdata", "m_vecViewOffset[0]" ), b:GetAbsOrigin()+Vector3(0,0,15)))
+                    end
+                    cmd:SetButtons( cmd.buttons | IN_ATTACK )
                 end
-                cmd:SetButtons( cmd.buttons | IN_ATTACK )
             end
         end
+        runAntiBomber("CTFPumpkinBomb", 350)
+        runAntiBomber("CTFGenericBomb", 300)
     end
 end
 callbacks.Register( "CreateMove", "awfgtghydui", CreateMove )
