@@ -523,3 +523,38 @@ local function antiaimArrow(localplayer_pos, aa_angle, range)
     end
 end
 ------------------------------------
+local function DrawCircle(centerX, centerY, radius, numSegments)
+    local texture = draw.CreateTextureRGBA(string.char(0xff, 0xff, 0xff, 255, 0xff, 0xff, 0xff, 255, 0xff, 0xff, 0xff, 255, 0xff, 0xff, 0xff, 255), 2, 2)
+    local vertices = {}
+    local angleIncrement = 2 * math.pi / numSegments
+    for i = 1, numSegments do
+        local angle = i * angleIncrement
+        local x = centerX + radius * math.cos(angle)
+        local y = centerY + radius * math.sin(angle)
+        local u = (x - centerX) / (2 * radius) + 0.5
+        local v = (y - centerY) / (2 * radius) + 0.5
+        table.insert(vertices, {x, y, u, v})
+    end
+    local u = (vertices[1][1] - centerX) / (2 * radius) + 0.5
+    local v = (vertices[1][2] - centerY) / (2 * radius) + 0.5
+    table.insert(vertices, {vertices[1][1], vertices[1][2], u, v})
+    draw.TexturedPolygon(texture, vertices, true)
+end
+--------------------------------------
+local function RoundBox(x, y, w, h, radius)
+    local texture = draw.CreateTextureRGBA(string.char(0xff, 0xff, 0xff, 255, 0xff, 0xff, 0xff, 255, 0xff, 0xff, 0xff, 255, 0xff, 0xff, 0xff, 255), 2, 2)
+    local round = {}
+    for i = 0, 3 do
+        local _x = x + ((i < 2) and (w - radius) or radius)
+        local _y = y + ((i % 3 == 0) and radius or (h - radius))
+        local a = 90 * i
+        for j = 0, 15 do
+            local _a = math.rad(a + j * 6)
+            local vertex_x = _x + radius * math.sin(_a)
+            local vertex_y = _y - radius * math.cos(_a)
+            table.insert(round, {vertex_x, vertex_y, 0.5, 0.5})
+        end
+    end
+    draw.TexturedPolygon(texture, round, true)
+end
+------------------------------------
