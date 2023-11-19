@@ -69,6 +69,8 @@ local menu = {
         shoot_bombs_esp_enable = false,
         shoot_bombs_esp_name = false,
         shoot_bombs_esp_dist = false,
+
+        warp_spam_enable = false,
     },
 
     sliders = {
@@ -93,6 +95,16 @@ local menu = {
 
     },
 
+    keybinds = {
+        warp_spam = nil,
+        warp_spam_keybind_name = "None",
+        warp_spam_waiting_for_input = false,
+
+        warp_in_air = nil,
+        warp_in_air_keybind_name = "None",
+        warp_in_air_waiting_for_input = false,
+    },
+
     info_panel = {
         x = 5,
         y = 500,
@@ -113,6 +125,132 @@ local tahoma2 = draw.CreateFont( "Tahoma", 12, 400)
 local tahoma_bold = draw.CreateFont( "Tahoma", 12, 800, FONTFLAG_OUTLINE )
 
 local f = math.floor
+
+local keyTable = {
+    [1] = "KEY_0",
+    [2] = "KEY_1",
+    [3] = "KEY_2",
+    [4] = "KEY_3",
+    [5] = "KEY_4",
+    [6] = "KEY_5",
+    [7] = "KEY_6",
+    [8] = "KEY_7",
+    [9] = "KEY_8",
+    [10] = "KEY_9",
+    [11] = "KEY_A",
+    [12] = "KEY_B",
+    [13] = "KEY_C",
+    [14] = "KEY_D",
+    [15] = "KEY_E",
+    [16] = "KEY_F",
+    [17] = "KEY_G",
+    [18] = "KEY_H",
+    [19] = "KEY_I",
+    [20] = "KEY_J",
+    [21] = "KEY_K",
+    [22] = "KEY_L",
+    [23] = "KEY_M",
+    [24] = "KEY_N",
+    [25] = "KEY_O",
+    [26] = "KEY_P",
+    [27] = "KEY_Q",
+    [28] = "KEY_R",
+    [29] = "KEY_S",
+    [30] = "KEY_T",
+    [31] = "KEY_U",
+    [32] = "KEY_V",
+    [33] = "KEY_W",
+    [34] = "KEY_X",
+    [35] = "KEY_Y",
+    [36] = "KEY_Z",
+    [37] = "KEY_PAD_0",
+    [38] = "KEY_PAD_1",
+    [39] = "KEY_PAD_2",
+    [40] = "KEY_PAD_3",
+    [41] = "KEY_PAD_4",
+    [42] = "KEY_PAD_5",
+    [43] = "KEY_PAD_6",
+    [44] = "KEY_PAD_7",
+    [45] = "KEY_PAD_8",
+    [46] = "KEY_PAD_9",
+    [47] = "KEY_PAD_DIVIDE",
+    [48] = "KEY_PAD_MULTIPLY",
+    [49] = "KEY_PAD_MINUS",
+    [50] = "KEY_PAD_PLUS",
+    [51] = "KEY_PAD_ENTER",
+    [52] = "KEY_PAD_DECIMAL",
+    [53] = "KEY_LBRACKET",
+    [54] = "KEY_RBRACKET",
+    [55] = "KEY_SEMICOLON",
+    [56] = "KEY_APOSTROPHE",
+    [57] = "KEY_BACKQUOTE",
+    [58] = "KEY_COMMA",
+    [59] = "KEY_PERIOD",
+    [60] = "KEY_SLASH",
+    [61] = "KEY_BACKSLASH",
+    [62] = "KEY_MINUS",
+    [63] = "KEY_EQUAL",
+    [64] = "KEY_ENTER",
+    [65] = "KEY_SPACE",
+    [66] = "KEY_BACKSPACE",
+    [67] = "KEY_TAB",
+    [68] = "KEY_CAPSLOCK",
+    [69] = "KEY_NUMLOCK",
+    [70] = "KEY_ESCAPE",
+    [71] = "KEY_SCROLLLOCK",
+    [72] = "KEY_INSERT",
+    [73] = "KEY_DELETE",
+    [74] = "KEY_HOME",
+    [75] = "KEY_END",
+    [76] = "KEY_PAGEUP",
+    [77] = "KEY_PAGEDOWN",
+    [78] = "KEY_BREAK",
+    [79] = "KEY_LSHIFT",
+    [80] = "KEY_RSHIFT",
+    [81] = "KEY_LALT",
+    [82] = "KEY_RALT",
+    [83] = "KEY_LCONTROL",
+    [84] = "KEY_RCONTROL",
+    [85] = "KEY_LWIN",
+    [86] = "KEY_RWIN",
+    [87] = "KEY_APP",
+    [88] = "KEY_UP",
+    [89] = "KEY_LEFT",
+    [90] = "KEY_DOWN",
+    [91] = "KEY_RIGHT",
+    [92] = "KEY_F1",
+    [93] = "KEY_F2",
+    [94] = "KEY_F3",
+    [95] = "KEY_F4",
+    [96] = "KEY_F5",
+    [97] = "KEY_F6",
+    [98] = "KEY_F7",
+    [99] = "KEY_F8",
+    [100] = "KEY_F9",
+    [101] = "KEY_F10",
+    [102] = "KEY_F11",
+    [103] = "KEY_F12",
+    [104] = "KEY_CAPSLOCKTOGGLE",
+    [105] = "KEY_NUMLOCKTOGGLE",
+    [106] = "KEY_SCROLLLOCKTOGGLE",
+    [107] = "MOUSE_LEFT",
+    [108] = "MOUSE_RIGHT",
+    [109] = "MOUSE_MIDDLE",
+    [110] = "MOUSE_4",
+    [111] = "MOUSE_5",
+    [112] = "MOUSE_WHEEL_UP",
+    [113] = "MOUSE_WHEEL_DOWN"
+}
+
+local function GetPressedKey()
+    for i = 1, 113 do 
+        if input.IsButtonPressed( i ) then
+            if i ~= 107 then 
+                return i
+            end
+        end
+    end
+end
 
 local function IsMouseInBounds(x,y,x2,y2)
     local mX, mY = input.GetMousePos()[1], input.GetMousePos()[2]
@@ -158,6 +296,42 @@ local function TextInCenter(x,y,x2,y2,string)
     local w, h = draw.GetTextSize(string)
     local width, height = x2-x, y2-y
     draw.Text(math.floor(x+(width/2)-(w/2)), math.floor(y+(height/2)-(h/2)), string)
+end
+
+local function Keybind(x, y, name, KeybindTableName)
+    local keybind = menu.keybinds[KeybindTableName]
+    local keybindText = menu.keybinds[KeybindTableName .. "_keybind_name"]
+    local keybindWidth, keybindHeight = draw.GetTextSize(keybindText)
+    local pos = {x, y, x+keybindWidth, y+keybindHeight}
+    local nameWidth, nameHeight = draw.GetTextSize(name)
+    if IsMouseInBounds(pos[1], pos[2], pos[3], pos[4] ) then
+        if input.IsButtonPressed(MOUSE_LEFT) then
+            menu.keybinds[KeybindTableName .. "_waiting_for_input"] = true
+        end
+    end
+    if menu.keybinds[KeybindTableName .. "_waiting_for_input"] then
+        menu.keybinds[KeybindTableName .. "_keybind_name"] = "..."
+        local pressedKey = GetPressedKey()
+        if pressedKey ~= nil then
+            if pressedKey == 70 then
+                keybind = nil
+            else
+                keybind = pressedKey
+            end
+            menu.keybinds[KeybindTableName] = keybind  -- Update the keybind
+            menu.keybinds[KeybindTableName .. "_waiting_for_input"] = false
+        end
+    else
+        menu.keybinds[KeybindTableName .. "_keybind_name"] = keybind and keyTable[keybind] or "None"
+    end
+    local rectWidth, rectHeight = draw.GetTextSize(keybindText)
+    draw.Color(10, 10, 10, 50)
+    draw.FilledRect(pos[1], pos[2], pos[1] + rectWidth+5, pos[2] + rectHeight+6)
+    draw.Color(45, 45, 45, 255)
+    draw.OutlinedRect(pos[1], pos[2], pos[1] + rectWidth+5, pos[2] + rectHeight+6)
+    draw.Color(255,255,255,255)
+    draw.Text(pos[1]+3,pos[2]+3,keybindText)
+    draw.Text(pos[3] + 9, y+f(nameHeight/4), name)
 end
 
 local Toggles = {}
@@ -416,7 +590,6 @@ local function DrawMenu()
     CFGbutton(x+5, y+bH-20,x+46, y+bH-5,"Load", "cfg_load")
     CFGbutton(x+48, y+bH-20,x+87, y+bH-5,"Save", "cfg_save")
     x = x + 90
-
     if menu.tabs.tab_1 then
         local x1,y1 = x+5, y+20
 
@@ -459,6 +632,7 @@ local function DrawMenu()
         Island(x1,y1,x1+150,y1+55,"Leg Jitter")
         Toggle(x1+5, y1+5,"Enable", "leg_jitter")
         Slider(x1+5,y1+40,x1+145,y1+50, "leg_jitter_value" ,10,60, "Amount")
+
     end
 
     if menu.tabs.tab_2 then
@@ -517,6 +691,14 @@ local function DrawMenu()
         y1 = y1+50
         Island(x1,y1,x1+150,y1+30,"Smooth When Spectated")
         Toggle(x1+5, y1+5,"Enable", "smooth_on_spec")
+
+        -- Keybind(x1+5, y1+60,"Test Keybind", "test")
+        y1 = y1+50
+        Island(x1,y1,x1+150,y1 + 80,"Warp Features")
+        Toggle(x1+5, y1+5,"Enable Warp Spam", "warp_spam_enable")
+        Keybind(x1+5, y1+30,"Warp Spam", "warp_spam")
+        Keybind(x1+5, y1+55,"Warp In Air", "warp_in_air")
+
     end
 end
 callbacks.Unregister( "Draw", "awftgybhdunjmiko")
@@ -1242,6 +1424,11 @@ local AimModeBefore1 = nil
 local AimModeBefore2 = nil
 local AimModeTick = 0
 
+local delay_warp = 1
+local delay_recharge = 1
+local shoot_delay = 0
+local wait1, wait2, a = 0,0,0
+
 local function CreateMove(cmd)
     local lPlayer = entities.GetLocalPlayer()
     if menu.toggles.AA_spin_enable then 
@@ -1335,6 +1522,43 @@ local function CreateMove(cmd)
         end
         runAntiBomber("CTFPumpkinBomb", 350)
         runAntiBomber("CTFGenericBomb", 300)
+    end
+
+    if menu.toggles.warp_spam_enable then 
+        if lPlayer ~= nil and menu.keybinds.warp_spam ~= nil and input.IsButtonDown( menu.keybinds.warp_spam ) then
+            gui.SetValue( "auto shoot", 0 )
+            if warp.GetChargedTicks() == 23 then 
+                if globals.TickCount() >= wait1 + delay_warp then
+                    warp.TriggerWarp();
+                    wait1 = globals.TickCount()
+                end
+            else
+                if wait1 ~= 0 then wait1 = 0; a = globals.TickCount() end
+            end
+    
+            if warp.GetChargedTicks() == 0 then 
+                if globals.TickCount() >= wait2 + delay_recharge then
+                    warp.TriggerCharge()
+                    wait2 = globals.TickCount()
+                end
+            else
+                if wait2 ~= globals.TickCount() then wait2 = globals.TickCount() end
+            end
+            --if globals.TickCount() == a+shoot_delay then gui.SetValue( "auto shoot", 1)  end
+        else
+            gui.SetValue( "auto shoot", 1)
+        end
+    end
+
+    if menu.keybinds.warp_in_air ~= nil and input.IsButtonDown( menu.keybinds.warp_in_air ) then
+        local flags = lPlayer:GetPropInt( "m_fFlags" )
+        if (flags & 1) == 0 then
+            if warp.GetChargedTicks() == 23 then 
+                warp.TriggerWarp()
+                cmd:SetForwardMove( 0 )
+                cmd:SetSideMove( 0 )
+            end
+        end
     end
 end
 callbacks.Register( "CreateMove", "awfgtghydui", CreateMove )
