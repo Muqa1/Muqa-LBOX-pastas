@@ -2,13 +2,13 @@ local camera_x_position = 5 -- edit these value to your liking
 local camera_y_position = 300
 local camera_width = 500
 local camera_height = 300
------------------------
+----------------------------------
 local projectilesTable = {}
 local latestPos = nil
 local latestProjAngles = nil
 local originalPos = nil
 
-local function PositionAngles(source, dest)
+local function PositionAngles(source, dest) -- straight from lnxLib, credits to him
     local function isNaN(x) return x ~= x end
     local M_RADPI = 180 / math.pi
     local delta = source - dest
