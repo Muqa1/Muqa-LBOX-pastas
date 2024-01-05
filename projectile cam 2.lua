@@ -72,14 +72,11 @@ local function LatestProj(cmd)
 end
 callbacks.Register("CreateMove","ProjCamProj", LatestProj)
 
-
-local camW = 400
-local camH = 300
-local cameraTexture = materials.CreateTextureRenderTarget( "cameraTexture123", camW, camH )
-local cameraMaterial = materials.Create( "cameraMaterial123", [[
+local cameraTexture = materials.CreateTextureRenderTarget( "camTexture", camera_width, camera_height )
+local cameraMaterial = materials.Create( "camTexture", [[
     UnlitGeneric
     {
-        $basetexture    "cameraTexture123"
+        $basetexture    "camTexture"
     }
 ]] )
 
