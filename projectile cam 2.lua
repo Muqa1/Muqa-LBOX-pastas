@@ -3,9 +3,9 @@
 
 local camera_x_position = 5; -- edit these value to your liking
 local camera_y_position = 300;
-local camera_width = 500;
+local camera_width = 499;
 local camera_height = 300;
-local camera_render_scale = 1.25;
+local camera_render_scale = 2;
 
 
 
@@ -95,8 +95,23 @@ callbacks.Register("CreateMove", "ProjCamProj", function(cmd)
         return;
     end
 
+    -- Get the latest NON-DORMANT entity ;3
+    local pEnt = nil;
+    for i = #g_aProjectiles, 1, -1 do
+        local lpEnt = entities.GetByIndex(g_aProjectiles[i]);
+        if not lpEnt:IsDormant() then
+            pEnt = lpEnt;
+            break;
+        end
+    end
+
+    if not pEnt then
+        g_stCamera.m_bActive = false;
+        g_stCamera.m_iLastIndex = INDEX_INVALID;
+        return;
+    end
+
     -- Set the camera data using the current sticky making sure to check if it isnt moving so we dont have a useless camera
-    local pEnt = entities.GetByIndex(g_aProjectiles[#g_aProjectiles]);
     local vecVelocity = pEnt:EstimateAbsVelocity();
 
     g_stCamera.m_vecPosition = pEnt:GetAbsOrigin() + Vector3(0, 0, 5);
